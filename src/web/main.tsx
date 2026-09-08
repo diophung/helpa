@@ -1,3 +1,5 @@
+import { Team, Passwordless, Sessions } from "./features/team.js";
+import { can } from "../shared/permissions.js";
 import React, { useEffect, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import { useTranslation } from "react-i18next";
@@ -234,6 +236,8 @@ function App() {
     ["inbox", Mail],
     ["knowledge", ScrollText],
     ["rules", ShieldCheck],
+    ["team", Users],
+    ["security", ShieldCheck],
     ["channels", Link2],
     ["audit", ScrollText],
     ["system", Activity],
@@ -249,7 +253,23 @@ function App() {
           {nav
             .filter(
               ([p]) =>
-                (canInspect || !["audit", "system"].includes(p)) &&
+                (p !== "team" || ["owner", "manager"].includes(actor.role)) &&
+                (p !== "audit" ||
+                  can(
+                    actor.role,
+                    actor.channelScope,
+                    "audit.read",
+                    undefined,
+                    actor.deniedPermissions,
+                  )) &&
+                (p !== "system" ||
+                  can(
+                    actor.role,
+                    actor.channelScope,
+                    "system.read",
+                    undefined,
+                    actor.deniedPermissions,
+                  )) &&
                 (!["knowledge", "rules"].includes(p) ||
                   (["owner", "manager"].includes(actor.role) &&
                     actor.channelScope.includes("*"))) &&
@@ -343,6 +363,17 @@ function App() {
             <Knowledge />
           ) : page === "rules" ? (
             <Rules />
+          ) : page === "team" ? (
+            <Team actor={actor} />
+          ) : page === "security" ? (
+            <>
+              <Sessions actor={actor} onDone={reload} />
+              {!actor.mfaEnrolled && (
+                <section className="panel section">
+                  <Mfa actor={actor} onDone={reload} />
+                </section>
+              )}
+            </>
           ) : page === "channels" ? (
             <Channels actor={actor} reload={reload} />
           ) : page === "audit" ? (
@@ -452,6 +483,7 @@ function Login({
           <ArrowUpRight size={18} />
         </button>
       </form>
+      {!bootstrap && <Passwordless onDone={onDone} />}
     </>
   );
 }
@@ -472,7 +504,13 @@ function Mfa({ actor, onDone }: { actor: Actor; onDone: () => Promise<void> }) {
     setBusy(true);
     setError("");
     try {
-      setSetup(await api("/auth/two-factor/enable", "POST", { password }));
+      setSetup(
+        await api(
+          "/auth/two-factor/enable",
+          "POST",
+          actor.passwordAvailable ? { password } : {},
+        ),
+      );
       setPassword("");
     } catch (e) {
       setError((e as Error).message);
@@ -507,15 +545,17 @@ function Mfa({ actor, onDone }: { actor: Actor; onDone: () => Promise<void> }) {
       <ErrorBox error={error} />
       {!actor.mfaEnrolled && !setup ? (
         <form onSubmit={enroll}>
-          <Field label={t("currentPassword")}>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-            />
-          </Field>
+          {actor.passwordAvailable && (
+            <Field label={t("currentPassword")}>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+              />
+            </Field>
+          )}
           <button className="primary full" disabled={busy}>
             {t("enroll")}
           </button>
@@ -945,13 +985,23 @@ function formatTime(date: string, actor: Actor) {
 function Audit({ actor }: { actor: Actor }) {
   const { t } = useTranslation();
   const [events, setEvents] = useState<any[]>([]);
+  const [actorFilter, setActorFilter] = useState("");
+  const [channelFilter, setChannelFilter] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const params = () =>
+    new URLSearchParams({
+      action: filter,
+      actorId: actorFilter,
+      ...(channelFilter ? { channelId: channelFilter } : {}),
+      ...(from ? { from: new Date(from).toISOString() } : {}),
+      ...(to ? { to: new Date(to).toISOString() } : {}),
+    }).toString();
   const [filter, setFilter] = useState("");
   const [error, setError] = useState("");
   async function load() {
     try {
-      setEvents(
-        (await api(`/audit?action=${encodeURIComponent(filter)}`)).events,
-      );
+      setEvents((await api(`/audit?${params()}`)).events);
       setError("");
     } catch (e) {
       setError((e as Error).message);
@@ -977,7 +1027,34 @@ function Audit({ actor }: { actor: Actor }) {
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         />
+        <input
+          aria-label={t("actor")}
+          placeholder={t("actor")}
+          value={actorFilter}
+          onChange={(e) => setActorFilter(e.target.value)}
+        />
+        <input
+          aria-label="Channel ID"
+          placeholder="Channel ID"
+          value={channelFilter}
+          onChange={(e) => setChannelFilter(e.target.value)}
+        />
+        <input
+          aria-label="From"
+          type="datetime-local"
+          value={from}
+          onChange={(e) => setFrom(e.target.value)}
+        />
+        <input
+          aria-label="Until"
+          type="datetime-local"
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+        />
         <button className="secondary">{t("apply")}</button>
+        <a className="secondary" href={"/api/audit/export?" + params()}>
+          CSV ↓
+        </a>
       </form>
       <section className="card table-card">
         <table>

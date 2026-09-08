@@ -1,3 +1,4 @@
+import { can } from "../../shared/permissions.js";
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -77,8 +78,22 @@ export function Publisher({
   const [weeks, setWeeks] = useState(4);
   const [busy, setBusy] = useState(false);
   const [paused, setPaused] = useState(false);
-  const write = ["owner", "manager", "editor"].includes(actor.role);
-  const approve = ["owner", "manager"].includes(actor.role);
+  const write = can(
+    actor.role,
+    actor.channelScope,
+    "posts.write",
+    undefined,
+    actor.deniedPermissions,
+  );
+  const approve =
+    ["owner", "manager"].includes(actor.role) &&
+    can(
+      actor.role,
+      actor.channelScope,
+      "approvals.write",
+      undefined,
+      actor.deniedPermissions,
+    );
   async function load() {
     try {
       const [p, m] = await Promise.all([api("/posts"), api("/media")]);
@@ -738,7 +753,13 @@ export function MediaLibrary({ actor }: { actor: Actor }) {
       ? "facebook,tiktok"
       : actor.channelScope.join(","),
   );
-  const write = ["owner", "manager", "editor"].includes(actor.role);
+  const write = can(
+    actor.role,
+    actor.channelScope,
+    "posts.write",
+    undefined,
+    actor.deniedPermissions,
+  );
   async function load() {
     try {
       setAssets((await api("/media")).assets);
@@ -1106,6 +1127,17 @@ export function ChannelControls({
           <p>
             {w("Granted scopes", "Quyền đã cấp")}:{" "}
             {channel.granted_scopes.join(", ") || "—"}
+            {channel.maintenance_error && (
+              <p className="notice warning">
+                {channel.maintenance_error.replaceAll("_", " ")}
+              </p>
+            )}
+            {channel.token_checked_at && (
+              <small>
+                {w("Last token check", "Kiểm tra token gần nhất")}:{" "}
+                {new Date(channel.token_checked_at).toLocaleString()}
+              </small>
+            )}
           </p>
           {channel.token_expires_at && (
             <p>

@@ -33,9 +33,11 @@ export function can(
   scope: string[],
   permission: Permission,
   channel?: string,
+  denied: string[] = [],
 ): boolean {
   return (
     permissions[role].includes(permission) &&
+    (role === "owner" || !denied.includes(permission)) &&
     (!channel || scope.includes("*") || scope.includes(channel))
   );
 }

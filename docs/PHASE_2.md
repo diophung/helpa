@@ -30,4 +30,4 @@ System exposes scoped last inbound-message timestamps, knowledge sync state, own
 
 The Playwright flow covers owner TOTP, real worker dry-run publishing, built-in knowledge creation, manual inquiry processing, facts review and approved dry-run reply. No live Meta, TikTok, SMTP, Google or LLM account call has been used as acceptance evidence. Real Sheets, webhook traffic, email delivery and a full day of dry-run traffic remain release prerequisites.
 
-Remaining later-phase work includes on-duty delegate routing, team permissions/invitations, token maintenance, reporting and analyst proposals. Current fallback assignment is the owner, 24/7/365.
+Team routing and token maintenance are documented in [Phase 3](PHASE_3.md). Reporting and analyst proposals follow. Coverage remains 24/7/365 with owner fallback.

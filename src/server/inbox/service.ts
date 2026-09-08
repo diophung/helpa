@@ -1,3 +1,4 @@
+import { onDuty } from "../team/access.js";
 import { randomUUID } from "node:crypto";
 import { transaction, type PgPool, type PoolClient } from "../db/index.js";
 import type { Config } from "../config.js";
@@ -168,24 +169,40 @@ export async function processInquiry(
         result.autonomy === "draft_for_approval" ||
         result.autonomy === "human_only"
       ) {
-        const owner = (
-          await db.query(
-            "SELECT user_id FROM membership WHERE business_id=$1 AND role='owner' AND revoked_at IS NULL",
-            [m.business_id],
-          )
+        const channel = (
+          await db.query("SELECT platform FROM channel WHERE id=$1", [
+            m.channel_id,
+          ])
         ).rows[0];
-        await db.query(
-          "UPDATE conversation SET assigned_to=coalesce(assigned_to,$2) WHERE id=$1",
-          [m.conversation_id, owner.user_id],
-        );
+        const owner = {
+          user_id: await onDuty(db as any, m.business_id, channel.platform),
+        };
+        await db.query("UPDATE conversation SET assigned_to=$2 WHERE id=$1", [
+          m.conversation_id,
+          owner.user_id,
+        ]);
         const complaint = result.analysis.intents.includes("complaint");
+        const dutyUser = (
+          await db.query('SELECT email FROM "user" WHERE id=$1', [
+            owner.user_id,
+          ])
+        ).rows[0];
+        const emailRecipient =
+          complaint || dutyUser.email.endsWith("@phone.invalid")
+            ? (
+                await db.query(
+                  "SELECT user_id FROM membership WHERE business_id=$1 AND role='owner' AND revoked_at IS NULL",
+                  [m.business_id],
+                )
+              ).rows[0].user_id
+            : owner.user_id;
         for (const transport of complaint ? ["email"] : ["email", "in_app"])
           await db.query(
             "INSERT INTO notification(id,business_id,user_id,channel_id,kind,transport,subject,body,dedup_key) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT DO NOTHING",
             [
               randomUUID(),
               m.business_id,
-              owner.user_id,
+              transport === "email" ? emailRecipient : owner.user_id,
               m.channel_id,
               complaint ? "complaint" : "approval",
               transport,
@@ -279,7 +296,16 @@ export async function dispatchReply(
           [d.business_id, d.approved_by],
         )
       ).rows[0];
-      if (!a || !can(a.role, a.channel_scope, "approvals.write", d.platform)) {
+      if (
+        !a ||
+        !can(
+          a.role,
+          a.channel_scope,
+          "approvals.write",
+          d.platform,
+          a.denied_permissions,
+        )
+      ) {
         await block("APPROVER_REVOKED");
         return;
       }

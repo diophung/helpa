@@ -1,7 +1,9 @@
+import { readdir, readFile, stat } from "node:fs/promises";
 import { test, expect } from "@playwright/test";
 import * as OTPAuth from "otpauth";
 test("owner signup → TOTP → settings → real worker dry-run → logout/login, on desktop and phone", async ({
   page,
+  browser,
 }) => {
   const failures: string[] = [];
   page.on("pageerror", (error) => failures.push(error.message));
@@ -173,5 +175,59 @@ test("owner signup → TOTP → settings → real worker dry-run → logout/logi
   await expect(
     page.getByRole("heading", { name: "A clear view of your back office." }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Team", exact: true }).click();
+  await page.getByLabel("Member name").fill("Sister browser fixture");
+  await page.getByLabel("Invite by").selectOption("phone");
+  await page.getByLabel("Email or +84 phone").fill("+84912345678");
+  await page
+    .getByRole("button", { name: "Create invitation", exact: true })
+    .click();
+  await expect(page.getByRole("status")).toContainText("Invitation saved");
+  const guestContext = await browser.newContext();
+  const guest = await guestContext.newPage();
+  await guest.goto("/");
+  await guest.getByLabel("Ngôn ngữ").selectOption("en");
+  await guest.getByLabel("Sign-in method").selectOption("phone");
+  await guest.getByLabel("Vietnam phone (+84)").fill("+84912345678");
+  await guest
+    .getByRole("button", { name: "Send sign-in link / code", exact: true })
+    .click();
+  await expect(guest.getByLabel("SMS verification code")).toBeVisible();
+  const files = await Promise.all(
+    (await readdir(".local/e2e-auth-outbox")).map(async (f) => ({
+      data: JSON.parse(await readFile(".local/e2e-auth-outbox/" + f, "utf8")),
+      time: (await stat(".local/e2e-auth-outbox/" + f)).mtimeMs,
+    })),
+  );
+  const otpCode = files
+    .filter((f) => f.data.phone === "+84912345678")
+    .sort((a, b) => b.time - a.time)[0].data.code;
+  await guest.getByLabel("SMS verification code").fill(otpCode);
+  await guest
+    .getByRole("button", { name: "Verify access", exact: true })
+    .click();
+  await expect(
+    guest.getByRole("button", { name: "Hộp thư", exact: true }),
+  ).toBeVisible();
+  await guest.getByLabel("Ngôn ngữ").selectOption("en");
+  await guest.getByRole("button", { name: "Inbox", exact: true }).click();
+  await expect(
+    guest.getByRole("heading", { name: "Customer inbox", exact: true }),
+  ).toBeVisible();
+  await expect(
+    guest.getByRole("button", { name: "Team", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Overview", exact: true }).click();
+  await page.getByRole("button", { name: "Team", exact: true }).click();
+  const member = page
+    .locator(".member-card")
+    .filter({ hasText: "Sister browser fixture" });
+  await member.getByText("Manage access", { exact: true }).click();
+  await member
+    .getByRole("button", { name: "Revoke access now", exact: true })
+    .click();
+  await expect(member).toContainText("Revoked");
+  expect((await guestContext.request.get("/api/inbox")).status()).toBe(401);
+  await guestContext.close();
   expect(failures).toEqual([]);
 });

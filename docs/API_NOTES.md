@@ -66,3 +66,9 @@ TikTok: [Web Login](https://developers.tiktok.com/docs/en/login-kit-web), [token
 - [Google Sheets values.get](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets.values/get) and [service-account authorization](https://developers.google.com/identity/protocols/oauth2/service-account): read-only shared Sheet access through GoogleAuth.
 - [OpenAI Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs) and [GPT-5 mini](https://developers.openai.com/api/docs/models/gpt-5-mini): Responses JSON schema, model capabilities and rates.
 - [Anthropic Structured Outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs) and [pricing](https://platform.claude.com/docs/en/about-claude/pricing): `output_config.format`, supported models and Haiku 4.5 rates.
+
+## Team access and maintenance (checked 2026-09-08)
+
+- [Better Auth magic links](https://better-auth.com/docs/plugins/magic-link), [phone numbers](https://better-auth.com/docs/plugins/phone-number), and installed 1.7.3 implementation: hashed single-use links, managed `verifyOTP`, passwordless two-factor enrollment.
+- [Twilio Verify start](https://www.twilio.com/docs/verify/api/verification), [check](https://www.twilio.com/docs/verify/api/verification-check), and [service rate limits](https://www.twilio.com/docs/verify/api/service-rate-limits): fixed Verify endpoints, SMS channel, `approved` plus `valid` result.
+- [TikTok token management](https://developers.tiktok.com/doc/oauth-user-access-token-management) and [post status](https://developers.tiktok.com/doc/content-posting-api-reference-get-video-status): rotated refresh credentials and publication-state reconciliation.

@@ -1,3 +1,4 @@
+import { maintainChannels, reconcileTikTok } from "./channels/maintenance.js";
 import { pollSources } from "./knowledge/google.js";
 import { deliverEmails } from "./notifications/service.js";
 import { readConfig } from "./config.js";
@@ -43,7 +44,14 @@ await boss.work<any>(
         !a ||
         !m ||
         m.scope.some(
-          (p: string) => !can(a.role, a.channel_scope, "posts.write", p),
+          (p: string) =>
+            !can(
+              a.role,
+              a.channel_scope,
+              "posts.write",
+              p,
+              a.denied_permissions,
+            ),
         )
       )
         continue;
@@ -127,7 +135,11 @@ let sourceTicking = false;
 const sourceTimer = setInterval(() => {
   if (sourceTicking) return;
   sourceTicking = true;
-  void pollSources(pool, c)
+  void (async () => {
+    await pollSources(pool, c);
+    await maintainChannels(pool, c);
+    await reconcileTikTok(pool, c);
+  })()
     .catch(() => console.error('{"event":"source_poll_failed"}'))
     .finally(() => {
       sourceTicking = false;

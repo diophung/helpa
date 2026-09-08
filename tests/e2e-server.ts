@@ -29,6 +29,8 @@ const env = {
   HELPA_MODE: "dry_run",
   LLM_MONTHLY_CAP_USD: "0",
   LOG_LEVEL: "silent",
+  AUTH_DELIVERY_MODE: "console",
+  AUTH_DEV_OUTBOX: ".local/e2e-auth-outbox",
   MEDIA_DIR: `.local/e2e-media-${dbName}`,
 };
 await admin.query(`CREATE DATABASE "${dbName}"`);

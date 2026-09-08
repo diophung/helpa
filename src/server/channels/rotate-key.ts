@@ -42,6 +42,18 @@ try {
         ],
       );
     }
+    const calls = await db.query("SELECT * FROM llm_call FOR UPDATE");
+    for (const row of calls.rows)
+      for (const field of ["request", "response"] as const) {
+        const value = row[field + "_encrypted"];
+        if (value) {
+          const context = `${row.business_id}:llm:${row.id}:${field}`;
+          await db.query(
+            `UPDATE llm_call SET ${field}_encrypted=$1 WHERE id=$2`,
+            [encrypt(decrypt(value, context, current), context, next), row.id],
+          );
+        }
+      }
     await db.query("DELETE FROM oauth_selection");
     await db.query("DELETE FROM oauth_state");
     for (const business of (await db.query("SELECT id FROM business")).rows)

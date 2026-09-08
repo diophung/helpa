@@ -20,6 +20,19 @@ const schema = z.object({
   ANTHROPIC_API_KEY: z.string().default(""),
   GOOGLE_SERVICE_ACCOUNT_FILE: z.string().default(""),
   KNOWLEDGE_POLL_MINUTES: z.coerce.number().int().min(1).max(1440).default(10),
+  AUTH_DELIVERY_MODE: z
+    .enum(["disabled", "console", "live"])
+    .default("disabled"),
+  AUTH_DEV_OUTBOX: z.string().default(".local/auth-outbox"),
+  TWILIO_ACCOUNT_SID: z
+    .string()
+    .regex(/^$|^AC[0-9a-fA-F]{32}$/)
+    .default(""),
+  TWILIO_AUTH_TOKEN: z.string().default(""),
+  TWILIO_VERIFY_SERVICE_SID: z
+    .string()
+    .regex(/^$|^VA[0-9a-fA-F]{32}$/)
+    .default(""),
   SMTP_HOST: z.string().default(""),
   SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
   SMTP_SECURE: z

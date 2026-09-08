@@ -49,3 +49,5 @@ Tests use local Postgres and synthetic API fixtures; no platform or LLM credenti
 - [Plan](docs/PLAN.md) · [Architecture](docs/ARCHITECTURE.md) · [ADRs](docs/adr/README.md) · [API evidence](docs/API_NOTES.md) · [Runbook](docs/RUNBOOK.md) · [Delivery status](docs/PHASE_0.md).
 
 Front Desk: [knowledge, inbox, rules, providers and validation](docs/PHASE_2.md).
+
+Team access: [email/SMS invitations, TOTP, duty schedule and token maintenance](docs/PHASE_3.md).

@@ -70,7 +70,16 @@ export async function dispatchVariant(
           [v.business_id, v.scheduled_by],
         )
       ).rows[0];
-      if (!m || !can(m.role, m.channel_scope, "posts.write", v.platform))
+      if (
+        !m ||
+        !can(
+          m.role,
+          m.channel_scope,
+          "posts.write",
+          v.platform,
+          m.denied_permissions,
+        )
+      )
         throw new AppError(403, "SCHEDULER_AUTHORITY_REVOKED");
       if (b.posts_require_approval) {
         const a = (
@@ -83,7 +92,13 @@ export async function dispatchVariant(
           v.approved_revision !== v.revision ||
           !a ||
           !["owner", "manager"].includes(a.role) ||
-          !can(a.role, a.channel_scope, "approvals.write", v.platform)
+          !can(
+            a.role,
+            a.channel_scope,
+            "approvals.write",
+            v.platform,
+            a.denied_permissions,
+          )
         )
           throw new AppError(409, "APPROVAL_REQUIRED");
       }

@@ -1,8 +1,23 @@
+import { can } from "../../shared/permissions.js";
 import React, { useState, useEffect } from "react";
 import type { Actor } from "../../server/auth/index.js";
 import { api, Field, Failure, useWords } from "./publisher.js";
 export function Inbox({ actor, channels }: { actor: Actor; channels: any[] }) {
   const w = useWords();
+  const write = can(
+    actor.role,
+    actor.channelScope,
+    "replies.write",
+    undefined,
+    actor.deniedPermissions,
+  );
+  const approve = can(
+    actor.role,
+    actor.channelScope,
+    "approvals.write",
+    undefined,
+    actor.deniedPermissions,
+  );
   const [items, setItems] = useState<any[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState<any>(null);
@@ -58,9 +73,11 @@ export function Inbox({ actor, channels }: { actor: Actor; channels: any[] }) {
             )}
           </p>
         </div>
-        <button className="primary" onClick={() => setNewThread(true)}>
-          {w("Paste a manual inquiry", "Dán câu hỏi thủ công")}
-        </button>
+        {write && (
+          <button className="primary" onClick={() => setNewThread(true)}>
+            {w("Paste a manual inquiry", "Dán câu hỏi thủ công")}
+          </button>
+        )}
       </div>
       <Failure error={error} />
       <div className="button-row inbox-filters">
@@ -202,7 +219,8 @@ export function Inbox({ actor, channels }: { actor: Actor; channels: any[] }) {
                         .join(" · ")}
                     </div>
                   )}
-                  {["needs_approval", "queued"].includes(d.status) ? (
+                  {approve &&
+                  ["needs_approval", "queued"].includes(d.status) ? (
                     <>
                       <Field
                         label={w(
@@ -284,7 +302,7 @@ export function Inbox({ actor, channels }: { actor: Actor; channels: any[] }) {
                   </details>
                 </article>
               ))}
-              {detail.conversation.kind === "manual" && (
+              {write && detail.conversation.kind === "manual" && (
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();

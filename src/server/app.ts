@@ -1,3 +1,6 @@
+import { auditRoutes } from "./audit/routes.js";
+import { teamRoutes } from "./team/routes.js";
+import type { SmsProvider } from "./team/access.js";
 import Fastify, {
   LogController,
   type FastifyRequest,
@@ -35,7 +38,7 @@ import { startQueue, probeQueue } from "./queue.js";
 
 const hash = (s: string) => createHash("sha256").update(s).digest("hex");
 const channelSelect =
-  "id,platform,external_id,display_name,mode,status,token_expires_at,token_expiry_kind,granted_scopes,capabilities,connected_at";
+  "id,platform,external_id,display_name,mode,status,token_expires_at,token_expiry_kind,granted_scopes,capabilities,connected_at,token_checked_at,maintenance_error";
 const authPaths = new Set([
   "/sign-in/email",
   "/sign-out",
@@ -75,6 +78,7 @@ export async function buildApp(
   c: Config,
   options: {
     pool?: PgPool;
+    sms?: SmsProvider;
     boss?: PgBoss;
     facebook?: FacebookConnection;
     serveWeb?: boolean;
@@ -83,7 +87,7 @@ export async function buildApp(
   const pool =
     options.pool ?? new Pool({ connectionString: c.DATABASE_URL, max: 8 });
   const boss = options.boss ?? (await startQueue(c));
-  const auth = createAuth(pool, c);
+  const auth = createAuth(pool, c, options.sms);
   const facebook = options.facebook ?? facebookConnection(c);
   const app = Fastify({
     bodyLimit: 64 * 1024,
@@ -568,29 +572,7 @@ export async function buildApp(
     });
     return { ok: true };
   });
-  app.get("/api/audit", async (req) => {
-    const actor = await actorFor(auth, pool, req);
-    requirePermission(actor, "audit.read");
-    const q = z
-      .object({
-        action: z.string().max(100).default(""),
-        limit: z.coerce.number().int().min(1).max(100).default(50),
-      })
-      .parse(req.query);
-    const r = await pool.query(
-      `SELECT a.id,a.actor_id,a.actor_type,a.action,a.payload,a.created_at,c.display_name AS channel FROM audit_event a
-      LEFT JOIN channel c ON c.id=a.channel_id AND c.business_id=a.business_id WHERE a.business_id=$1 AND ($2::boolean OR c.platform=ANY($3::text[]) OR a.channel_id IS NULL)
-      AND ($4='' OR a.action=$4) ORDER BY a.created_at DESC LIMIT $5`,
-      [
-        actor.businessId,
-        actor.channelScope.includes("*"),
-        actor.channelScope,
-        q.action,
-        q.limit,
-      ],
-    );
-    return { events: r.rows };
-  });
+  await auditRoutes(app, pool, auth);
   app.get("/api/system", async (req) => {
     const actor = await actorFor(auth, pool, req);
     requirePermission(actor, "system.read");
@@ -705,6 +687,7 @@ export async function buildApp(
   await publisherRoutes(app, pool, auth, c, boss);
   await tiktokRoutes(app, pool, auth, c);
   await knowledgeRoutes(app, pool, auth, c);
+  await teamRoutes(app, pool, auth, c, { forwardAuth, sessionHeaders });
   await inboxRoutes(app, pool, auth, c);
   if (
     options.serveWeb !== false &&

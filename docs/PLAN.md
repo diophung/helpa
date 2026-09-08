@@ -1,6 +1,6 @@
 # Helpa delivery plan
 
-Status: Publisher and Front Desk local slices implemented; remaining phases in progress, 2026-09-08. Dio resolved [B1–B3](OPEN_QUESTIONS.md): OpenAI/Claude API-key configuration, Twilio, existing VPS/domain with a setup guide. Runtime credentials and real-account tests remain separate prerequisites.
+Status: Publisher, Front Desk and Key Cabinet local slices implemented; remaining phases in progress, 2026-09-08. Dio resolved [B1–B3](OPEN_QUESTIONS.md): OpenAI/Claude API-key configuration, Twilio, existing VPS/domain with a setup guide. Runtime credentials and real-account tests remain separate prerequisites.
 
 ## Delivery rules
 
@@ -94,6 +94,8 @@ Acceptance:
 External dependencies: approved real data/voice examples, LLM key/cap, webhook permissions/public domain, optional Sheets service account.
 
 ## Phase 3 — Key Cabinet
+
+Local slice delivered; [setup and verification](PHASE_3.md).
 
 **Clickable result:** invite a phone-only delegate → accept SMS OTP → work only Facebook inbox → inspect action audit → revoke and see the session lose access.
 

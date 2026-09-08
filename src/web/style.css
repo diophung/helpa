@@ -1654,3 +1654,50 @@ fieldset {
     max-width: 100%;
   }
 }
+.passwordless {
+  margin-top: 2rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1.5rem;
+}
+.member-card {
+  padding: 1rem 0;
+  border-bottom: 1px solid #e0e7de;
+}
+.member-card button {
+  margin-top: 0.5rem;
+}
+.duty-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0.75rem 0;
+  flex-wrap: wrap;
+}
+.duty-row input {
+  width: 5rem;
+}
+.duty-row select {
+  width: auto;
+  max-width: 100%;
+}
+.panel
+  button:not(.primary):not(.secondary):not(.source-button):not(.thread-button) {
+  border: 1px solid #d5dfd4;
+  background: #fff;
+  border-radius: 8px;
+  padding: 0.45rem 0.75rem;
+  cursor: pointer;
+}
+.thread-button {
+  display: block !important;
+}
+.thread-button > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.thread-button p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

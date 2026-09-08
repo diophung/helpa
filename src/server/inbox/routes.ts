@@ -1,3 +1,4 @@
+import { can } from "../../shared/permissions.js";
 import type { FastifyInstance } from "fastify";
 import type { Config } from "../config.js";
 import { z } from "zod";
@@ -18,7 +19,23 @@ export async function inboxRoutes(
 ) {
   app.get("/api/inbox", async (req) => {
     const a = await actorFor(auth, pool, req);
-    requirePermission(a, "replies.write");
+    if (
+      !can(
+        a.role,
+        a.channelScope,
+        "replies.write",
+        undefined,
+        a.deniedPermissions,
+      ) &&
+      !can(
+        a.role,
+        a.channelScope,
+        "approvals.write",
+        undefined,
+        a.deniedPermissions,
+      )
+    )
+      throw new AppError(403, "FORBIDDEN");
     const q = z
       .object({
         filter: z
@@ -43,7 +60,23 @@ export async function inboxRoutes(
   });
   async function conversation(req: any) {
     const a = await actorFor(auth, pool, req);
-    requirePermission(a, "replies.write");
+    if (
+      !can(
+        a.role,
+        a.channelScope,
+        "replies.write",
+        undefined,
+        a.deniedPermissions,
+      ) &&
+      !can(
+        a.role,
+        a.channelScope,
+        "approvals.write",
+        undefined,
+        a.deniedPermissions,
+      )
+    )
+      throw new AppError(403, "FORBIDDEN");
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
     const v = (
       await pool.query(
@@ -52,7 +85,23 @@ export async function inboxRoutes(
       )
     ).rows[0];
     if (!v) throw new AppError(404, "NOT_FOUND");
-    requirePermission(a, "replies.write", v.platform);
+    if (
+      !can(
+        a.role,
+        a.channelScope,
+        "replies.write",
+        v.platform,
+        a.deniedPermissions,
+      ) &&
+      !can(
+        a.role,
+        a.channelScope,
+        "approvals.write",
+        v.platform,
+        a.deniedPermissions,
+      )
+    )
+      throw new AppError(403, "FORBIDDEN");
     return { a, v };
   }
   app.get("/api/inbox/:id", async (req) => {
@@ -121,6 +170,7 @@ export async function inboxRoutes(
   });
   app.post("/api/inbox/:id/messages", async (req) => {
     const { a, v } = await conversation(req);
+    requirePermission(a, "replies.write", v.platform);
     if (v.kind !== "manual") throw new AppError(409, "MANUAL_THREAD_REQUIRED");
     const { text } = z
       .object({ text: z.string().trim().min(1).max(4000) })
@@ -149,6 +199,7 @@ export async function inboxRoutes(
   });
   app.patch("/api/inbox/:id", async (req) => {
     const { a, v } = await conversation(req);
+    requirePermission(a, "replies.write", v.platform);
     const b = z
       .object({
         status: z.enum(["open", "resolved"]).optional(),
