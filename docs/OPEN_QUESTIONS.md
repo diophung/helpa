@@ -1,32 +1,22 @@
-# Decisions needed from Dio
+# Decisions and remaining inputs
 
-Date: 2026-09-08. All answers are pending. Questions B1–B3 block application code, as requested in the brief. Planning and documentation can continue. Selecting a provider does not require pasting its secret into chat; credentials will be installed locally through the documented environment/secret configuration.
+Updated: 2026-09-08. Dio answered B1–B3 and Q4–Q7; application work is authorized. Credentials are installed through local environment configuration, never committed or pasted into chat.
 
-## Blocking before Phase 0
+## Confirmed decisions
 
-| ID | Question | Proposal / information needed |
-| --- | --- | --- |
-| B1 | Which LLM provider/key should the gateway use, and what monthly budget cap should Helpa enforce? | Propose Anthropic Claude, configurable model, provider-agnostic gateway. Confirm provider, API key availability, and USD/month cap. No paid default or unlimited budget will be silently selected. |
-| B2 | Which SMS provider should handle OTP for Vietnamese phone numbers? | Two options below. Confirm provider and account availability; a console provider will support local development. |
-| B3 | Do you already have a VPS and domain, or should we document a recommended setup? | If existing: provider, OS, RAM/CPU, region, intended hostname, and whether you control DNS. Otherwise, authorize documenting a paid 2-vCPU/4-GB VPS setup with Docker and Caddy. No infrastructure purchase is implied. |
+| ID  | Dio's answer                                                  | Implementation consequence                                                                                                                                                                                                                                          |
+| --- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| B1  | OpenAI or Claude, API-key based; configurable monthly cap     | Selectable `openai` / `anthropic`, configurable model and USD cap. Anthropic remains the initial selection; cap defaults to 0 (paid requests disabled) until configured. OpenAI uses the API, not a ChatGPT browser session. Provider execution belongs to Phase 2. |
+| B2  | Twilio                                                        | Twilio Verify for phone OTP in Phase 3; console provider for local tests.                                                                                                                                                                                           |
+| B3  | Existing VPS/domain; document setup                           | Provide a host-independent VPS setup guide with hostname/environment placeholders. Do not provision or deploy to the VPS without its actual connection details.                                                                                                     |
+| Q4  | Meta and TikTok apps created; access granted                  | Treat access as owner-reported; inspect actual scopes/capabilities during connection. Credentials/IDs and exact grants remain runtime inputs, not blockers to local development.                                                                                    |
+| Q5  | Data and voice samples will arrive in separate Markdown files | Reserve a documented input location. No real product facts or voice examples assumed.                                                                                                                                                                               |
+| Q6  | 24/7/365 coverage                                             | Always-open coverage; owner fallback until a delegate on-duty rota is supplied.                                                                                                                                                                                     |
+| Q7  | Complaints trigger email only                                 | Human-only handling and visible inbox assignment; email is the only active complaint notification transport. No SMS or push/in-app notification alert for complaints.                                                                                               |
 
-### SMS options and cost basis
+## Remaining runtime inputs
 
-Prices checked 2026-09-08; USD, excluding taxes, retries, extra message segments, account-specific rates, and any additional carrier charges.
-
-1. **Twilio Verify — proposed for the first integration.** Public Verify fee is $0.05 per successful verification, plus channel charges. Published Vietnam SMS rate is $0.2852 per segment. A planning estimate with one successful verification and one SMS segment is **$0.3352**, or **$33.52 for 100**. This combines public prices, not an account-specific Verify quote. Confirm the actual Vietnam route/rate and sender requirements in the account before activation. Sources: [Verify pricing](https://www.twilio.com/en-us/verify/pricing), [Vietnam SMS pricing](https://www.twilio.com/en-us/sms/pricing/vn).
-2. **Vonage Verify Conversion.** Public Verify fee is **$0.06084 per successful verification**, plus messaging/voice charges for attempts. For 100 successes and 100 single-segment attempts, budget **$6.084 + 100 × the account's Vietnam SMS rate**. The Vietnam delivery rate was not available in the retrieved public page; it needs the account dashboard or a quote. This is not a comparable all-in price yet. Sources: [Verify pricing](https://www.vonage.com/communications-apis/verify/pricing/), [SMS pricing](https://www.vonage.com/communications-apis/sms/pricing/).
-
-Twilio is proposed for a more concrete initial estimate, not a claim of lowest cost or best Vietnam deliverability. Both options need a delivery test on the delegates' carriers. Use an SMS-only verification workflow initially; do not enable billable voice fallback automatically. Complaint SMS notifications are a separate provider capability/cost from managed OTP.
-
-## Non-blocking questions from §11
-
-| ID | Question | Working assumption while unanswered |
-| --- | --- | --- |
-| Q4 | Have you created the Meta developer app and TikTok developer app? Which permissions/products have actually been granted, and is your Page linked? | Assume neither is ready. Prepare review/setup checklists first. Show connection unavailable/manual states; never label a fixture as a connected account. Permission names in the brief still need official verification. |
-| Q5 | Can you provide 5–10 real customer messages with ideal replies, plus the product/shipping sheet or its column headers? | Use clearly synthetic Vietnamese fixtures and canonical headers in development. No production prices, origin, quality claims, or brand examples will be invented. Redact customer identifiers in examples. |
-| Q6 | What are business hours, and who is on duty outside them? | 07:00–21:00 Asia/Ho_Chi_Minh, daily; owner is the fallback assignee. Fresh, unambiguous eligible facts can still auto-reply after hours; escalations get an approved holding reply if policy permits. |
-| Q7 | Should complaints send an SMS to you personally, or only in-app/email? | In-app plus email once configured; no complaint SMS without opt-in. Complaints always route to a human. |
+Actual VPS hostname and environment secrets; Meta app ID/secret and approved OAuth configuration; provider API key/model and positive cap if enabled; SMTP server/sender/complaint recipient; product and voice Markdown files. These do not block Phase 0 code. Real-account acceptance and VPS deployment remain unverified until configured and exercised.
 
 ## Recorded defaults
 

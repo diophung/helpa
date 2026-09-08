@@ -1,63 +1,100 @@
-# Helpa runbook — planning outline
+# Helpa runbook
 
-Status: documentation scaffold, 2026-09-08. No operational commands below are implied to exist. Phase 0 will replace this outline with tested commands and host-specific values, with later sections completed in their owning phase.
+Phase 0 operations. [SETUP.md](SETUP.md) covers installation. Later features are explicitly marked; there is no live publisher, inquiry engine, SMS or email sender in this release.
 
-## Deployment and recovery prerequisites
+## Health and daily operation
 
-Record Dio's B3 answer, paid VPS sizing/OS/region, controlled DNS name, public HTTPS callback URL, SSH/operator access, and off-host encrypted backup destination. Production exposes Caddy only. Local development uses local CA trust; local HTTPS alone cannot receive platform webhooks.
+`docker compose ps` shows app/worker/database health. `/healthz` is minimal liveness; `/readyz` checks Postgres. The authenticated System page shows worker heartbeat, queue state counts, exact dry-run operations and the unimplemented webhook/sync panels. `/api/audit` and the Audit page show sensitive changes. Request bodies, URLs, auth headers, OAuth codes and platform response secrets are not written to application logs. Error events carry a request ID.
 
-Phase 0 README must provide a tested ≤15-step fresh-host procedure: configure DNS, install Docker/Compose, obtain the release, populate documented environment secrets, start Compose/migrations, bootstrap owner/TOTP, verify health, connect Page, validate dry-run and configure backups. Do not publish a pretend `docker compose up` quickstart before those files exist.
+Use `docker compose logs --tail=80 app worker migrate` for startup/runtime diagnostics. Verify heartbeat freshness (45-second threshold), failed/retry jobs, and channel expiry metadata. Known Page expiry within seven days is highlighted. An absent expiry is unknown unless Meta explicitly returns zero. Automatic refresh/reconnect alerts are Phase 3; reconnect manually when invalidated.
 
-The environment reference will document every introduced variable, including mode, database URL, public origin/domain, bootstrap credential, auth/encryption keys, model/provider/cap, OAuth/webhook secrets, SMS/email settings, storage paths, logging/error reporting and backup configuration. Fail fast on missing secrets; never include working credentials as defaults.
+## Incident pause and resumption
 
-## Meta setup and review preparation
+Settings → Auto-replies paused records the owner preference and audit event. Future automatic holding replies must obey the same switch. To contain all application activity immediately, run `docker compose stop app worker`, change HELPA_MODE to dry_run in `.env`, then recreate the services after investigation. In-flight requests cannot be recalled. Never set live merely to clear a failed job.
 
-Owner preparation checklist (exact console labels and permissions still await official verification):
+Dry-run permits account OAuth/token exchange and read-only calls, but no customer-facing platform writes. The Phase 0 diagnostic only records its exact payload; it never calls any platform. No registered live publisher/reply transport exists yet. Later retries must reconcile unknown remote outcomes before retransmission.
 
-1. Confirm ownership/admin access to the intended Facebook Page and the business's developer account.
-2. Confirm/create the developer app in the official portal; record its app ID and intended Page/business relationship. Store its secret only through deployment configuration.
-3. Establish the public HTTPS origin and public privacy/data-deletion information needed by the applicable app setup.
-4. Verify the exact current product setup, redirect URIs, Page permissions, access tiers and token lifecycle from official docs before implementing/requesting scopes.
-5. Configure the verified callback/webhook paths after Phase 0/2 endpoints exist; test signature failure and durable receipt behavior.
-6. Prepare reviewer instructions, test access and recordings showing each requested permission in use. Complete business verification/review where required. Request only capabilities Helpa actually implements.
-7. Check granted permissions and Page selection after OAuth, then test with allowed accounts in dry-run. Enable live only after the relevant live acceptance checks pass.
+## Backup
 
-This is a preparation sequence, not a completed/current permission checklist. [API register](API_NOTES.md) lists inaccessible pages and outstanding evidence. Missing review cannot be solved by borrowing a user's personal password.
+Install the maintained `age` CLI through your host's package manager, and generate an age identity on a separate trusted recovery device. Give the VPS only the public recipient. Keep the private identity, AUTH_SECRET and all versions of ENCRYPTION_KEY outside the VPS and outside the database/media backup. PostgreSQL dumps contain confidential customer/business data even though tokens are separately encrypted.
 
-## TikTok application and audit checklist
+Run:
 
-1. Resolve the internal-use eligibility issue in [API notes](API_NOTES.md) with TikTok before depending on Direct Post approval. Record the answer and capability state.
-2. Confirm app/account ownership, configured redirect URL and the requested Content Posting product/scopes. Obtain actual user authorization; app creation alone grants no access.
-3. Verify the current required creator preview/settings, user consent, disclosure controls, upload-source rules and status-reporting UX in the completed publisher.
-4. Prepare honest app-purpose, reviewer access and screencast material. Submit the applicable audit if eligible; never describe this internal utility as a public multi-customer product unless its scope actually changes.
-5. Validate allowed account/visibility conditions in the unaudited path. Record active mode and reason in the UI.
-6. Use separately authorized inbox upload where available; otherwise export media/caption and finish in TikTok manually. A handoff is not a published post; record human completion evidence.
-7. Apply separately for business-message/comment capabilities if useful. Keep manual threads until exact APIs and access are verified.
+```sh
+export AGE_RECIPIENT='your actual age public recipient'
+export BACKUP_DIR='/your/backup/destination'
+bash scripts/backup.sh
+```
 
-## Normal operation and incidents
+The script stops app/worker briefly, takes a custom-format pg_dump and media tar, records the Git revision/UTC creation time, encrypts the archive and restarts services. Caddy may return 502 during this maintenance window. Incomplete encrypted output keeps a `.partial` suffix. The temporary plaintext working directory is private and removed on exit; place the host temporary directory on an encrypted filesystem. Only run one backup process at a time.
 
-- Each day: inspect failed/overdue jobs, unknown outbound outcomes, knowledge freshness, webhook failures, spend remaining and token expiry. Review waiting approvals and fallback ownership.
-- Pause incident: owner enables automation pause; all automatic replies including holding replies stop. For broader containment, pause scheduled publishing and set global dry-run. Inspect pending attempts before resume; in-flight external requests cannot be recalled.
-- Retry incident: reconcile unknown platform outcomes before retrying. A screenshot/permalink/manual confirmation is marked human evidence. Never clear idempotency history to make a job run.
-- Stale data: correct the source or explicitly attest a current observation; syncing an old sheet is not a freshness fix. Recompute pending drafts and their approvals.
-- Token rotation: suspend affected dispatch, reconnect or refresh using the platform's documented flow, verify scopes/account identity, audit the change, revoke superseded credentials where supported. Alert seven days before a known expiry; unknown expiry is a visible state. Do not assume every Page token has a refresh endpoint.
-- Encryption-key rotation: install a versioned wrapping key, rewrap data keys, verify decryption, preserve keys required by backups, then retire the old key according to backup retention. A database backup without its key material is not recoverable.
-- Delegate revocation: revoke membership/sessions and pending authority; verify denial from an existing session and a queued job.
+Schedule nightly using your host scheduler. For example, install a root/operator-readable wrapper that exports the recipient/destination and calls the script from `/opt/helpa`; add a cron entry with `CRON_TZ=Asia/Ho_Chi_Minh` and `15 3 * * * /opt/helpa-backup-wrapper`. Use `flock` in that wrapper to prevent overlap. Configure the host's existing monitoring to alert on a nonzero exit or an archive older than 26 hours. The repository does not install a cron job or connect an alerting account. Copy the encrypted archive off-host after success and verify that copy. Proposed RPO is 24 hours; RTO target is 4 hours, to be measured on your host.
 
-## Backup and restore drill
+Retain outbound audit for at least 12 months. Audit rows are append-only through SQL triggers; no automatic pruning is implemented. Retention/archive operations need a separately reviewed maintenance procedure. Old backup keys cannot be discarded while any retained archive requires them.
 
-Phase 0 adds a nightly `pg_dump` and media backup script, encryption, an off-host copy and failure alerts. A consistent media manifest must distinguish referenced immutable assets from incomplete uploads. Suggested targets: RPO 24 hours, RTO 4 hours, validated rather than promised.
+## Restore drill
 
-Restore drill: provision an isolated host in dry-run with workers paused; restore database/media and separately held encryption keys; run compatible migrations; verify sample attachments, immutable facts, audit history and owner recovery; identify effects possibly sent after the backup; reconcile those before selectively releasing jobs. Record duration, recovered timestamp and missing data. Run the drill before production and after material backup changes.
+Use an isolated host/directory and separate Compose project/data volumes. Never run destructive restore commands against the active production database.
 
-## Add a channel
+1. Obtain the matching application revision, encrypted archive, age private identity and historical auth/encryption keys. Configure a private restore origin, HELPA_MODE=dry_run, and no live external notifications.
+2. Create a private temporary directory; decrypt with `age -d -i /secure/recovery-identity -o /private/restore.tar /path/to/archive.tar.age`, then extract the tar there. Verify the recorded revision and inspect the archive members before extraction. Use the trusted matching release.
+3. Start only the isolated database with `docker compose -p helpa-restore up -d postgres`. Confirm `docker compose -p helpa-restore ps` targets the isolated project. Do **not** run migrations against an empty schema before restoring.
+4. Restore into that empty database:
 
-Document official capability/access evidence; implement the adapter interface and sanitized contract fixtures; start with manual capabilities and dry-run; add signature/dedup and transport-policy checks; implement UI capability states; verify dispatch/audit/authorization coverage; run live acceptance only with granted access. Core modules must not import the new provider's SDK.
+   ```sh
+   docker compose -p helpa-restore exec -T postgres \
+     pg_restore -U helpa -d helpa --exit-on-error < /private/restored/database.dump
+   ```
 
-## Remaining sections by phase
+5. Restore media with a one-shot container into the isolated media volume:
 
-- Phase 0: exact install/env/backup/recovery commands, owner MFA recovery, Meta token-connect procedure, release/rollback procedure.
-- Phase 1: publication reconciliation, format limits, media cleanup, TikTok operational checklist verified against final UI.
-- Phase 2: source mapping/freshness diagnostics, budget failure, pipeline evidence, policy exceptions actually granted, golden-set execution.
-- Phase 3: real SMS onboarding, session/TOTP support, on-duty routing, audit export and token expiry recovery.
-- Phases 4–5: metric completeness/backfills, digest delivery, insight evidence and proposal rollback.
+   ```sh
+   docker compose -p helpa-restore run --rm --no-deps -T --entrypoint tar app \
+     -C /app/media -xf - < /private/restored/media.tar
+   ```
+
+6. Use the preserved AUTH_SECRET and matching ENCRYPTION_KEY/ENCRYPTION_KEY_ID. Run the migration service at the matching revision; checksum verification prevents silently edited migrations. Never point the restored image at the production database.
+7. Delete restored browser sessions and expire pending OAuth state/selection in the isolated DB before bringing up the app. Start app only, verify login/TOTP, token decryption using an authorized operator check, audit rows and media references. Do not call Meta until explicitly conducting the account test.
+8. Before starting the worker, identify jobs whose external effects may have occurred after the backup. Phase 0 only has diagnostic jobs; later publisher jobs need reconciliation with remote IDs/evidence. Hold unresolved operations. Start worker in dry-run, inspect queue/diagnostic, then record elapsed restore time, recovery timestamp and missing records.
+
+Delete plaintext restore material when the drill is complete. Successful file decryption alone is not a restore test. A production failover needs DNS/origin changes, safe queue reconciliation and explicit live reactivation after verification.
+
+## Platform token rotation / disconnect
+
+Reconnect Facebook through Channels. OAuth exchanges a fresh user token for a long-lived token, discovers Pages, and stores only the selected Page token encrypted. A successful reconnect replaces the old encrypted Page credential and resets channel mode to dry-run. Review the actual Page name, scopes, tasks and expiry. Revoke superseded app grants at Meta if appropriate; Helpa disconnect only deletes its own stored token and does not claim to revoke the remote grant.
+
+Meta app secret rotation requires updating META_APP_SECRET on the host, recreating app/worker, then re-running the verified connection. A long-lived Page token is not refreshed through an invented refresh endpoint. The seven-day renewal/alert workflow and TikTok refresh are Phase 3 work.
+
+## Credential encryption-key rotation
+
+Back up the existing key material. Stop app/worker and set HELPA_MODE=dry_run. Generate a new 32-byte hex key and a distinct key ID privately; export them as NEXT_ENCRYPTION_KEY and NEXT_ENCRYPTION_KEY_ID without printing them. Run:
+
+```sh
+docker compose run --rm --no-deps -e NEXT_ENCRYPTION_KEY -e NEXT_ENCRYPTION_KEY_ID app \
+  node dist/server/server/channels/rotate-key.js --confirm-key-rotation
+```
+
+The operator command decrypts/re-encrypts Page credential envelopes atomically, discards temporary OAuth selections/states, and appends rotation audit events. It is not an HTTP endpoint. On success, install the new values as ENCRYPTION_KEY and ENCRYPTION_KEY_ID in `.env` **before** recreating app/worker. On transaction failure, leave the old values. Keep the old keys for old backups. Do not rotate AUTH_SECRET using this command: Better Auth sessions/TOTP/recovery data depend on its own secret, so retain it until a separately tested auth-secret migration is available.
+
+## Owner recovery
+
+Use a single-use recovery code from the login challenge if the authenticator is unavailable. Better Auth stores recovery codes encrypted and consumes them; Helpa audits recovery verification. TOTP is required on every new privileged session; trusted-device shortcuts and public signup/password-reset/social-login endpoints are not exposed.
+
+If all codes are lost but the owner still knows the password, an operator with shell/database access can perform an offline MFA reset. Back up, stop app/worker, set HELPA_MODE=dry_run, then run:
+
+```sh
+docker compose run --rm --no-deps app node dist/server/server/auth/recover-owner.js \
+  --confirm-owner-mfa-reset
+```
+
+This appends an operator audit event, removes owner sessions and old MFA enrollment, and leaves the password intact. Recreate app/worker; the owner must enroll TOTP again before business API access. This host-privileged recovery is unavailable through HTTP and is not delegated to normal staff. Forgotten-password recovery with verified email and full session management is Phase 3; do not create a second owner or edit password hashes manually.
+
+## Meta and TikTok access
+
+Dio reports both apps exist and have access. Do not reapply blindly. Validate the exact redirects/grants on connection and keep denied capabilities disabled. Current Phase 0 Meta request set: pages_show_list; code exchange, long-lived exchange, inspection, Page discovery and selection. Publishing/messaging scopes will be introduced only when their operations are verified and implemented.
+
+TikTok audit preparation: confirm the actual app purpose is eligible (internal utilities are a documented Direct Post risk), granted scope/account, required creator settings and preview/consent, commercial disclosures, visibility restrictions and status reporting; prepare truthful reviewer instructions/recordings and complete any required audit. Inbox upload has its own grant and human completion; manual export is the baseline when unavailable. The persistent manual state in this release does not mean your existing app grant was denied. [Official reference register](API_NOTES.md).
+
+## Extend a channel
+
+Keep SDK/transport details in channels; implement the ChannelAdapter capabilities and methods; verify official operations and fixtures; start in manual/dry-run; implement signature/dedup and policy before ingestion/replies; use current server authorization, approval, factual checks and one outbound audit boundary. Add real-account contract recordings after access is available. Core feature modules must not call platform HTTP directly.

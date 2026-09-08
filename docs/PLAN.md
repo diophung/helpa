@@ -1,6 +1,6 @@
 # Helpa delivery plan
 
-Status: proposed, 2026-09-08. Planning slice only. [B1–B3](OPEN_QUESTIONS.md) must be answered before any application code is written. The architecture remains reviewable; provider choice and hosting are not settled by an ADR proposal.
+Status: Phase 0 in progress, 2026-09-08. Dio resolved [B1–B3](OPEN_QUESTIONS.md): OpenAI/Claude API-key configuration, Twilio, existing VPS/domain with a setup guide. Runtime credentials and real-account tests remain separate prerequisites.
 
 ## Delivery rules
 
@@ -10,15 +10,17 @@ Status: proposed, 2026-09-08. Planning slice only. [B1–B3](OPEN_QUESTIONS.md) 
 - Deploy dry-run first. Outbound audit persistence, policy enforcement, role/channel authorization, and approval integrity are prerequisites to every send path, starting with Phase 0 foundations and fully applied in Phase 1.
 - Do not claim completion of a phase's live acceptance while app access, data, or credentials are missing. Complete independent work and record exactly what remains externally blocked.
 
-## Planning slice — current scope
+## Planning slice — completed prerequisite
 
 - [x] Read the full brief and inspect the empty workspace.
 - [x] Write phased plan, component/data architecture, and ADRs for stack, queue, LLM gateway, and auth.
 - [x] Record questions, defaults, official-doc findings, and third-party eligibility risks.
-- [ ] Dio answers B1–B3; update decisions before Phase 0.
-- [ ] Phase 0 begins. No application code is part of this slice.
+- [x] Dio answered B1–B3; decisions updated before Phase 0.
+- [x] Phase 0 begins. Application code follows the accepted decisions.
 
 ## Phase 0 — Foundation
+
+Local implementation and checks are complete; [delivery evidence and remaining real-account acceptance](PHASE_0.md).
 
 **Clickable result:** bootstrap owner → enroll/verify TOTP → log in → open Channels → connect Facebook Page → inspect token metadata, audit entry, and System page.
 

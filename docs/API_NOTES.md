@@ -10,29 +10,28 @@ If eligible, implement explicit user preview/consent, current creator settings a
 
 Additional verified pages:
 
-| Source | Verified planning fact | Still required before coding |
-| --- | --- | --- |
-| [Direct Post getting started](https://developers.tiktok.com/docs/en/content-posting-api-get-started) | Direct Post needs approved `video.publish` scope and user authorization | Selected account/app eligibility, OAuth configuration, current request sequence |
-| [Direct Post reference](https://developers.tiktok.com/docs/en/content-posting-api-reference-direct-post) | Official API reference is accessible | Extract and fixture-test exact fields, status handling and limits |
-| [Upload getting started](https://developers.tiktok.com/docs/en/content-posting-api-get-started-upload-content) | Official inbox-upload documentation is accessible | Verify `video.upload`, account grant, user completion flow and upload limits before enabling |
+| Source                                                                                                         | Verified planning fact                                                  | Still required before coding                                                                 |
+| -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| [Direct Post getting started](https://developers.tiktok.com/docs/en/content-posting-api-get-started)           | Direct Post needs approved `video.publish` scope and user authorization | Selected account/app eligibility, OAuth configuration, current request sequence              |
+| [Direct Post reference](https://developers.tiktok.com/docs/en/content-posting-api-reference-direct-post)       | Official API reference is accessible                                    | Extract and fixture-test exact fields, status handling and limits                            |
+| [Upload getting started](https://developers.tiktok.com/docs/en/content-posting-api-get-started-upload-content) | Official inbox-upload documentation is accessible                       | Verify `video.upload`, account grant, user completion flow and upload limits before enabling |
 
 Full capability matrix will distinguish Direct Post eligibility, audit state, user grant, inbox upload, manual publish, inbox ingest/reply, comments and metrics. Different operations can have different modes on one channel. No fixed audit turnaround is promised.
 
-## Meta
+## Meta — Phase 0 verification completed by direct official-page retrieval
 
-The supplied official URLs returned retrieval errors in this planning session. No permissions, endpoint parameters, current version, token lifetime, or message-tag exceptions have been independently verified from their full contents. Retain the brief's conservative 24-hour-window requirement in the design and deny exceptions until verified. Do not silently turn the brief's list into an OAuth scope string.
+On 2026-09-08, the web research tool still returned retrieval errors, but direct HTTPS retrieval of the official pages succeeded. Phase 0 uses Graph API v25.0 as shown by the retrieved guides, with configurable version pinning; this is not a claim that v25.0 is the newest version supported by every app.
 
-| Official source to verify | Required evidence |
-| --- | --- |
-| [Pages API](https://developers.facebook.com/docs/pages-api) | Page discovery, access tokens, text/photo/multi-photo/video publishing, current version and exact permissions |
-| [Permissions](https://developers.facebook.com/docs/permissions) | Confirm each requested permission and review/access requirements |
-| [Reels publishing](https://developers.facebook.com/docs/video-api/guides/reels-publishing) | Upload/status/publish lifecycle, video specifications and failure recovery |
-| [Page webhooks](https://developers.facebook.com/docs/graph-api/webhooks/reference/page) | Supported subscriptions/fields, signatures, event identifiers, verification handshake |
-| [Messenger overview](https://developers.facebook.com/documentation/business-messaging/messenger-platform/overview) | Page/app prerequisites and supported customer interaction types |
-| [Send messages](https://developers.facebook.com/documentation/business-messaging/messenger-platform/send-messages) | Recipient IDs, request forms, response handling and limits |
-| [Messenger policy](https://developers.facebook.com/documentation/business-messaging/messenger-platform/policy) | Current window rules, tags, automation disclosure and human path; whether any exceptions apply to this use case |
+| Official reference                                                                                            | Verified and implemented                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Manual OAuth flow](https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow/)         | Versioned dialog/oauth with code/state/redirect/scope; server-side oauth/access_token exchange; debug_token inspection of app, validity, scopes and expiry |
+| [Long-lived tokens](https://developers.facebook.com/docs/facebook-login/guides/access-tokens/get-long-lived/) | fb_exchange_token exchange; Page accounts discovery using the long-lived user token; Page tokens can have no fixed expiry but remain revocable             |
+| [Pages getting started](https://developers.facebook.com/docs/pages-api/getting-started/)                      | pages_show_list and me/accounts; Page ID/name/access token/tasks response                                                                                  |
+| [Secure requests](https://developers.facebook.com/docs/graph-api/guides/secure-requests/)                     | Server-side HMAC-SHA256 appsecret_proof binding                                                                                                            |
 
-Candidate permissions supplied by Dio: `pages_show_list`, `pages_manage_posts`, `pages_read_engagement`, `pages_manage_engagement`, `pages_messaging`, `pages_manage_metadata`. **Unverified candidates, not an approved/current request set.** Before Phase 0 OAuth code, retry official portal access/search or use the owner's developer-console documentation. Exact scopes may differ by operation, app mode and review status.
+Phase 0 requests **pages_show_list only**. Publishing/reply permissions do not become enabled capabilities merely because token inspection lists them. One retrieved getting-started page uses the inconsistent spelling pages_manage_read_engagement; that spelling is not requested. Verify each later permission against the dedicated reference before implementing that operation. Temporary and persisted Page tokens never leave the server.
+
+Still requiring detailed verification before their owning phases: [Reels publishing](https://developers.facebook.com/docs/video-api/guides/reels-publishing), [Page webhooks](https://developers.facebook.com/docs/graph-api/webhooks/reference/page), [Messenger overview](https://developers.facebook.com/documentation/business-messaging/messenger-platform/overview), [Send API](https://developers.facebook.com/documentation/business-messaging/messenger-platform/send-messages), [Messenger policy](https://developers.facebook.com/documentation/business-messaging/messenger-platform/policy), and [permission reference](https://developers.facebook.com/docs/permissions). No policy exception or message tag is implemented by guesswork.
 
 ## TikTok business messaging/comments
 
@@ -47,3 +46,7 @@ Candidate permissions supplied by Dio: `pages_show_list`, `pages_manage_posts`, 
 ## Other implementation gates
 
 The selected LLM's schema features/rates, Google Sheets read-only scopes/limits, SMS sender/delivery rules, storage/media libraries, and metric availability will be checked against their official documentation in the owning slice. The brief's food-advertising decree/fine figures are not independently verified here and will not be repeated as legal conclusions. The requested prohibition on unsupported health, quality and origin claims is a product constraint regardless of those figures.
+
+## OpenAI configuration
+
+[Official API quickstart](https://developers.openai.com/api/docs/quickstart) was fetched on 2026-09-08. OpenAI integration uses a server-side API key. Phase 0 exposes provider/model/cap settings only; structured output, model availability, rates and request execution will be verified before Phase 2. No ChatGPT session automation is used.

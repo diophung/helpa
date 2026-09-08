@@ -1,6 +1,6 @@
 # ADR-002: Postgres queue with explicit delivery state
 
-Status: Proposed. Date: 2026-09-08.
+Status: Accepted for implementation. Date: 2026-09-08.
 
 ## Context
 

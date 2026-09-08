@@ -1,10 +1,10 @@
 # Helpa architecture
 
-Status: proposed, 2026-09-08. This is a design, not a report of implemented functionality. See [ADRs](adr/README.md) and [open decisions](OPEN_QUESTIONS.md).
+Status: accepted design with Phase 0 implemented, 2026-09-08. Future modules below remain a design; see PHASE_0.md for implemented scope. See [ADRs](adr/README.md) and [open decisions](OPEN_QUESTIONS.md).
 
 ## Stack and deployment
 
-Use TypeScript throughout: React/Vite UI served by a Fastify Node.js web process, a separate Node.js worker built from the same repository, Postgres, pg-boss, and Caddy. SQL migrations and Drizzle provide typed database access; Zod validates external and internal boundaries. Better Auth supplies identity primitives with Helpa-owned authorization and mandatory MFA enforcement. Use maintained XLSX parsing (proposed ExcelJS), a direct ffmpeg/ffprobe subprocess wrapper, i18next, Vitest, and Playwright. Validate/pin supported versions, licenses, and security posture in Phase 0; these are library choices, not claims about compatibility already tested.
+Use TypeScript throughout: React/Vite UI served by a Fastify Node.js web process, a separate Node.js worker built from the same repository, Postgres, pg-boss, and Caddy. Reviewed SQL migrations and native pg repositories implement the foundation; typed ORM adoption is deferred until it adds value to the feature modules; Zod validates external and internal boundaries. Better Auth supplies identity primitives with Helpa-owned authorization and mandatory MFA enforcement. Use maintained XLSX parsing (proposed ExcelJS), a direct ffmpeg/ffprobe subprocess wrapper, i18next, Vitest, and Playwright. Validate/pin supported versions, licenses, and security posture in Phase 0; these are library choices, not claims about compatibility already tested.
 
 One origin avoids cross-origin auth complexity. One database avoids Redis operations at this scale. Core modules contain no platform SDK imports. Web and worker share application services and DTOs, not request handlers. FFmpeg concurrency starts at one with CPU/memory/time limits; queue priorities protect replies from long transcodes. The production image is built before deployment so the small VPS need not run a frontend build under load.
 
@@ -42,17 +42,17 @@ Deployment services: `app`, `worker`, `postgres`, `caddy`, plus a one-shot migra
 
 ## Module contracts
 
-| Module | Owns | Boundary |
-| --- | --- | --- |
-| auth | identities, sessions, invitations, memberships, MFA | Verified actor context; business/permission/channel checked for each operation |
-| channels | OAuth, secret storage, webhook verification, capabilities | Provider-specific transport and documented capability errors only |
-| scheduler | posts, variants, recurrence, approvals, dispatch jobs | Frozen revision and UTC due time |
-| inbox | normalized conversations/messages, drafts, assignments | Channel-independent message and reply commands |
-| rules | validated YAML and immutable versions | Deterministic decisions with reason codes |
-| knowledge | connectors, mapping, sync runs, versioned records | Typed factual assertions with provenance and freshness |
-| llm | classify/extract/rephrase/summarize, usage ledger | Strict schemas; cannot perform business actions or grant permissions |
-| metrics/advisor | immutable snapshots, aggregates, evidence/proposals | No automatic application of advice |
-| audit | sensitive events, outbound payload history | Append-only application access; failure blocks new dispatch |
+| Module          | Owns                                                      | Boundary                                                                       |
+| --------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| auth            | identities, sessions, invitations, memberships, MFA       | Verified actor context; business/permission/channel checked for each operation |
+| channels        | OAuth, secret storage, webhook verification, capabilities | Provider-specific transport and documented capability errors only              |
+| scheduler       | posts, variants, recurrence, approvals, dispatch jobs     | Frozen revision and UTC due time                                               |
+| inbox           | normalized conversations/messages, drafts, assignments    | Channel-independent message and reply commands                                 |
+| rules           | validated YAML and immutable versions                     | Deterministic decisions with reason codes                                      |
+| knowledge       | connectors, mapping, sync runs, versioned records         | Typed factual assertions with provenance and freshness                         |
+| llm             | classify/extract/rephrase/summarize, usage ledger         | Strict schemas; cannot perform business actions or grant permissions           |
+| metrics/advisor | immutable snapshots, aggregates, evidence/proposals       | No automatic application of advice                                             |
+| audit           | sensitive events, outbound payload history                | Append-only application access; failure blocks new dispatch                    |
 
 `ChannelAdapter` operations: `publish`, `fetchInbox`, `sendReply`, `fetchMetrics`, `verifyWebhook`, `refreshCredentials`, `capabilities`. Each receives a business/channel context and returns a typed result including delivery state, external ID when known, retryability, and reason. Capability descriptors are per operation/content type, not one boolean for a whole platform. Core decides dispatch eligibility; adapters revalidate transport-specific prerequisites.
 
@@ -64,28 +64,28 @@ Every tenant-scoped row has a non-null `business_id`; cross-table references use
 
 All business timestamps use Postgres `timestamptz`. Money uses decimal amounts plus currency; quantities include units. Human-facing records use tombstones/soft-delete; immutable record revisions and audit evidence survive source deletion. Tenant-filtered repositories and negative integration tests enforce scope; PostgreSQL RLS can be added later as defense in depth rather than silently relying on untested pooled-connection context.
 
-| Entities | Key fields and relations |
-| --- | --- |
-| Business | name, business timezone, mode settings, approval setting, automation pause/version, voice profile/version, retention |
-| User / Identity / Session / MFA | verified contact identities, UI locale/timezone; revocable sessions, MFA status/time, device metadata; no business authority in a client token |
-| Membership | business + user unique, role, channel scope, optional subtractive permissions, status/revocation/version |
-| Invitation / OnDutyShift / NotificationPreference | hashed single-use invite, intended recipient/role/scope, expiry; weekday/timezone shifts; delivery preferences |
-| Channel / ChannelCredential | platform/external ID unique per business, name, per-operation capabilities and verified-at, transport mode; private ciphertext, wrapped key, key version, expiry/refresh status |
-| MediaAsset / MediaRendition | content hash, original path/MIME/size, metadata; spec version, derived path/hash, processing state |
-| Post / PostVariant / VariantRevision / PostMedia | shared content/media relationships; per-channel captions/type/time/state; immutable payload revision and approval digest |
-| RecurringTemplate / PublishJob | local recurrence, timezone, template revision; unique occurrence key; variant revision, due time, attempt, operation key |
-| OutboundOperation / OutboundAttempt | unique logical effect key, substep, mode, frozen payload/hash, actor, intent, factual evidence, policy checks, request/response, delivery outcome |
-| Conversation / Message / WebhookReceipt | channel+external-thread uniqueness; channel+external-message/event uniqueness, message origin/time, last customer-interaction time, raw-body digest and processing state |
-| IntentResult | message, intents, confidence per intent, typed entities, model/prompt version, extraction evidence |
-| Rule / RuleVersion / BrandVoiceVersion | validated YAML/voice content, immutable revision, actor, activation timestamp |
-| KnowledgeSource / SyncRun / DatasetPolicy | connector config, mapping/version, source priority, staged validation; row/error counts; per-field freshness limits |
-| KnowledgeRecord / KnowledgeRecordVersion | stable canonical key (SKU/zone/order etc.), source row reference; immutable canonical JSON, content hash, source fact timestamps, synced_at, validity interval |
-| ReplyDraft / FactUse / HumanEdit | incoming message, text/revision, autonomy/reasons, check results; exact record version/field/value/unit/provenance; draft/final pair |
-| Approval / ApprovalRequest | typed target FK to variant revision or draft revision, decision/actor/time, approved hash; assigned user, created/due timestamps and state |
-| AuditEvent | actor user/rule/automation, action/resource/channel, safe exact payload reference, before/after metadata, correlation ID, timestamp |
-| LlmCall / BudgetReservation | operation/provider/model, encrypted prompt/response reference, tokens/rate version/cost, reservation/finalization state and billing month |
-| Notification / DeliveryAttempt | target user, type/channel, dedup key, attempt, provider outcome |
-| MetricSnapshot / Insight / Proposal | channel/post/date/metric/value/unit/source and capture time; detector version/window/counts/IDs; human-reviewable change |
+| Entities                                          | Key fields and relations                                                                                                                                                        |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Business                                          | name, business timezone, mode settings, approval setting, automation pause/version, voice profile/version, retention                                                            |
+| User / Identity / Session / MFA                   | verified contact identities, UI locale/timezone; revocable sessions, MFA status/time, device metadata; no business authority in a client token                                  |
+| Membership                                        | business + user unique, role, channel scope, optional subtractive permissions, status/revocation/version                                                                        |
+| Invitation / OnDutyShift / NotificationPreference | hashed single-use invite, intended recipient/role/scope, expiry; weekday/timezone shifts; delivery preferences                                                                  |
+| Channel / ChannelCredential                       | platform/external ID unique per business, name, per-operation capabilities and verified-at, transport mode; private ciphertext, wrapped key, key version, expiry/refresh status |
+| MediaAsset / MediaRendition                       | content hash, original path/MIME/size, metadata; spec version, derived path/hash, processing state                                                                              |
+| Post / PostVariant / VariantRevision / PostMedia  | shared content/media relationships; per-channel captions/type/time/state; immutable payload revision and approval digest                                                        |
+| RecurringTemplate / PublishJob                    | local recurrence, timezone, template revision; unique occurrence key; variant revision, due time, attempt, operation key                                                        |
+| OutboundOperation / OutboundAttempt               | unique logical effect key, substep, mode, frozen payload/hash, actor, intent, factual evidence, policy checks, request/response, delivery outcome                               |
+| Conversation / Message / WebhookReceipt           | channel+external-thread uniqueness; channel+external-message/event uniqueness, message origin/time, last customer-interaction time, raw-body digest and processing state        |
+| IntentResult                                      | message, intents, confidence per intent, typed entities, model/prompt version, extraction evidence                                                                              |
+| Rule / RuleVersion / BrandVoiceVersion            | validated YAML/voice content, immutable revision, actor, activation timestamp                                                                                                   |
+| KnowledgeSource / SyncRun / DatasetPolicy         | connector config, mapping/version, source priority, staged validation; row/error counts; per-field freshness limits                                                             |
+| KnowledgeRecord / KnowledgeRecordVersion          | stable canonical key (SKU/zone/order etc.), source row reference; immutable canonical JSON, content hash, source fact timestamps, synced_at, validity interval                  |
+| ReplyDraft / FactUse / HumanEdit                  | incoming message, text/revision, autonomy/reasons, check results; exact record version/field/value/unit/provenance; draft/final pair                                            |
+| Approval / ApprovalRequest                        | typed target FK to variant revision or draft revision, decision/actor/time, approved hash; assigned user, created/due timestamps and state                                      |
+| AuditEvent                                        | actor user/rule/automation, action/resource/channel, safe exact payload reference, before/after metadata, correlation ID, timestamp                                             |
+| LlmCall / BudgetReservation                       | operation/provider/model, encrypted prompt/response reference, tokens/rate version/cost, reservation/finalization state and billing month                                       |
+| Notification / DeliveryAttempt                    | target user, type/channel, dedup key, attempt, provider outcome                                                                                                                 |
+| MetricSnapshot / Insight / Proposal               | channel/post/date/metric/value/unit/source and capture time; detector version/window/counts/IDs; human-reviewable change                                                        |
 
 Approvals have a checked typed target relation, not an unchecked generic ID. `FactUse` records the field value as used and points to an immutable version. Outbound evidence includes LLM call IDs and exact prompt/response where applicable; credentials/authorization headers never enter payload previews. Audit records are protected against app-level update/delete and retained at least 12 months; this is not a claim of tamper-proof storage against a database administrator.
 

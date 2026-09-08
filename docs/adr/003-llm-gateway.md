@@ -1,6 +1,6 @@
 # ADR-003: Provider-neutral, budgeted LLM gateway
 
-Status: Proposed. Date: 2026-09-08. **B1 blocks provider/model/cap activation.**
+Status: Accepted for implementation. Date: 2026-09-08. B1 resolved: OpenAI and Anthropic API-key providers; configurable monthly cap, default 0 until configured.
 
 ## Context
 
@@ -8,7 +8,7 @@ LLMs help recognize Vietnamese intent/entities and phrase approved information, 
 
 ## Decision
 
-Define `classify`, `extract`, `rephrase`, and `summarize` contracts with strict JSON schemas, bounded tokens, deadlines and versioned prompts. Propose Anthropic Claude as the first provider, subject to Dio's answer; choose/pin a supported model and verify the current official API before implementation. No model ID, pricing or structured-output feature support is assumed here. Unknown fields, invalid schemas, timeout or provider refusal fail conservatively; no unbounded repair loop or fallback to another paid provider.
+Define `classify`, `extract`, `rephrase`, and `summarize` contracts with strict JSON schemas, bounded tokens, deadlines and versioned prompts. Support OpenAI and Anthropic Claude with selectable API-key configuration; retain Anthropic as the initial selection and a configurable monthly cap defaulting to 0; choose/pin a supported model and verify the current official API before implementation. No model ID, pricing or structured-output feature support is assumed here. Unknown fields, invalid schemas, timeout or provider refusal fail conservatively; no unbounded repair loop or fallback to another paid provider.
 
 Keep a fixture implementation with deterministic inputs/outputs for offline CI. Fixture tests validate pipeline behavior; separately run and report a budgeted real-provider golden evaluation to establish model accuracy. Provider selection, model, prompt versions and usage are visible in System.
 
