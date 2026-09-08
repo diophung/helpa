@@ -108,7 +108,7 @@ describe("Facebook OAuth contract (synthetic fixtures based on official docs)", 
     const url = new URL(fb.authorizationUrl("one-time-state"));
     expect(url.searchParams.get("state")).toBe("one-time-state");
     expect(url.searchParams.get("scope")).toBe(
-      "pages_show_list,pages_manage_posts,pages_read_engagement,pages_manage_engagement",
+      "pages_show_list,pages_manage_posts,pages_read_engagement,pages_manage_engagement,pages_messaging,pages_manage_metadata",
     );
     const pages = await fb.discover("code");
     expect(pages[0]).toMatchObject({

@@ -216,7 +216,7 @@ describe("foundation vertical slice", () => {
     const after = (await owner.request("GET", "/api/settings")).json();
     expect(after.business.llm_provider).toBe("openai");
     expect(after.business.llm_monthly_cap_usd).toBe("12.50");
-    expect(after.llmExecutionAvailable).toBe(false);
+    expect(after.llmExecutionAvailable).toBe(true);
   });
   it("binds OAuth state to the session and consumes it once", async () => {
     const started = await owner.request(

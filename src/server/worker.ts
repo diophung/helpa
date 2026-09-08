@@ -1,8 +1,12 @@
+import { pollSources } from "./knowledge/google.js";
+import { deliverEmails } from "./notifications/service.js";
 import { readConfig } from "./config.js";
 import { Pool } from "./db/index.js";
 import { startQueue, probeQueue } from "./queue.js";
 import { recordDryRun } from "./channels/dispatch.js";
 
+import { processInquiry, dispatchReply } from "./inbox/service.js";
+import { processWebhooks } from "./inbox/routes.js";
 import { dispatchVariant } from "./scheduler/dispatch.js";
 import { inspectMedia, makeReel } from "./media/service.js";
 import { can } from "../shared/permissions.js";
@@ -74,6 +78,42 @@ const workTimer = setInterval(
     ),
   5000,
 );
+let inboxTicking = false;
+async function inboxWork() {
+  if (inboxTicking) return;
+  inboxTicking = true;
+  try {
+    await pool.query(
+      "UPDATE reply_delivery SET status='uncertain',error='WORKER_INTERRUPTED' WHERE status='started' AND created_at<now()-interval '2 minutes'",
+    );
+    await pool.query(
+      "UPDATE reply_draft SET status='needs_approval',checks=jsonb_set(checks,'{reasons}',coalesce(checks->'reasons','[]')||'\"EXTERNAL_OUTCOME_UNKNOWN\"'::jsonb) WHERE status='sending' AND EXISTS(SELECT 1 FROM reply_delivery x WHERE x.draft_id=reply_draft.id AND x.status='uncertain')",
+    );
+    await processWebhooks(pool);
+    const messages = await pool.query(
+      "SELECT id FROM message WHERE processed_at IS NULL AND NOT from_business ORDER BY received_at LIMIT 10",
+    );
+    for (const m of messages.rows) await processInquiry(pool, c, m.id);
+    const drafts = await pool.query(
+      "SELECT id FROM reply_draft WHERE status IN ('queued','approved') ORDER BY created_at LIMIT 20",
+    );
+    for (const d of drafts.rows) await dispatchReply(pool, c, d.id, "reply");
+    const holding = await pool.query(
+      "SELECT d.id FROM reply_draft d WHERE d.status='needs_approval' AND NOT EXISTS(SELECT 1 FROM reply_delivery x WHERE x.draft_id=d.id AND x.kind='holding') LIMIT 20",
+    );
+    for (const d of holding.rows) await dispatchReply(pool, c, d.id, "holding");
+    await deliverEmails(pool, c);
+  } finally {
+    inboxTicking = false;
+  }
+}
+const inboxTimer = setInterval(
+  () =>
+    void inboxWork().catch(() =>
+      console.error('{"event":"inbox_worker_failed"}'),
+    ),
+  2000,
+);
 async function heartbeat() {
   await pool.query(
     "INSERT INTO system_heartbeat(name,last_seen_at,details) VALUES('worker',now(),$1) ON CONFLICT(name) DO UPDATE SET last_seen_at=excluded.last_seen_at,details=excluded.details",
@@ -83,6 +123,16 @@ async function heartbeat() {
   await pool.query("DELETE FROM oauth_selection WHERE expires_at<now()");
   await pool.query("DELETE FROM login_limit WHERE resets_at<now()");
 }
+let sourceTicking = false;
+const sourceTimer = setInterval(() => {
+  if (sourceTicking) return;
+  sourceTicking = true;
+  void pollSources(pool, c)
+    .catch(() => console.error('{"event":"source_poll_failed"}'))
+    .finally(() => {
+      sourceTicking = false;
+    });
+}, 60000);
 await heartbeat();
 const timer = setInterval(
   () =>
@@ -96,6 +146,10 @@ async function stop() {
   stopping = true;
   clearInterval(timer);
   clearInterval(workTimer);
+  clearInterval(inboxTimer);
+  clearInterval(sourceTimer);
+  while (ticking || inboxTicking || sourceTicking)
+    await new Promise((r) => setTimeout(r, 100));
   await boss.stop();
   await pool.end();
 }

@@ -1497,3 +1497,160 @@ fieldset {
     gap: 15px;
   }
 }
+.workspace-columns {
+  display: grid;
+  grid-template-columns: 270px minmax(0, 1fr);
+  gap: 20px;
+  margin: 22px 0;
+}
+.workspace-columns.equal {
+  grid-template-columns: 1fr 1fr;
+}
+.panel.section {
+  background: white;
+  border: 1px solid #dce1d6;
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 20px;
+  min-width: 0;
+}
+.source-button {
+  display: block;
+  text-align: left;
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-bottom: 1px solid #e2e7dc;
+  background: transparent;
+}
+.source-button strong,
+.source-button small {
+  display: block;
+}
+.source-button small {
+  font-size: 11px;
+  color: #607465;
+  margin-top: 5px;
+}
+.source-button.active {
+  background: #e7efde;
+}
+.code-editor {
+  font-family: monospace !important;
+  font-size: 12px !important;
+}
+.inbox-layout {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 18px;
+  margin: 20px 0;
+}
+.inbox-list {
+  background: white;
+  border: 1px solid #dce1d6;
+  border-radius: 14px;
+  overflow: hidden;
+  align-self: start;
+}
+.thread-button {
+  width: 100%;
+  text-align: left;
+  padding: 18px;
+  border: 0;
+  border-bottom: 1px solid #e3e8dd;
+  background: white;
+}
+.thread-button.active {
+  background: #edf3e4;
+}
+.thread-button > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px;
+}
+.thread-button span,
+.thread-button small {
+  font-size: 11px;
+  color: #647664;
+}
+.thread-button p {
+  font-size: 13px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.message-bubble {
+  background: #f0f3eb;
+  padding: 14px;
+  border-radius: 12px;
+  margin: 14px 0;
+  max-width: 90%;
+}
+.message-bubble p,
+.reply-text {
+  white-space: pre-wrap;
+}
+.message-bubble small {
+  font-size: 11px;
+  color: #607565;
+}
+.message-bubble.outgoing {
+  margin-left: auto;
+  background: #e2eed7;
+}
+.draft-card {
+  padding: 18px;
+  border: 1px solid #cfdbc4;
+  border-left: 4px solid #3a7251;
+  border-radius: 10px;
+  margin: 20px 0;
+}
+.intent-tags {
+  font-size: 12px;
+  color: #59745e;
+}
+.draft-card details {
+  margin-top: 18px;
+}
+.fact-row {
+  padding: 10px;
+  background: #f3f5ee;
+  margin: 8px 0;
+}
+.fact-row strong,
+.fact-row small,
+.fact-row code {
+  display: block;
+  font-size: 12px;
+  margin: 3px 0;
+  overflow-wrap: anywhere;
+}
+.inbox-filters button.active {
+  background: #244f3b;
+  color: white;
+}
+.section > details {
+  margin: 15px 0;
+}
+.channel-controls {
+  margin: 18px 0;
+}
+@media (max-width: 850px) {
+  .workspace-columns,
+  .workspace-columns.equal,
+  .inbox-layout {
+    grid-template-columns: 1fr;
+  }
+  .inbox-list {
+    max-height: 280px;
+    overflow: auto;
+  }
+  .panel.section {
+    padding: 18px;
+  }
+  .message-bubble {
+    max-width: 100%;
+  }
+}

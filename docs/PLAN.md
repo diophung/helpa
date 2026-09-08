@@ -1,6 +1,6 @@
 # Helpa delivery plan
 
-Status: Publisher local slice implemented; remaining phases in progress, 2026-09-08. Dio resolved [B1–B3](OPEN_QUESTIONS.md): OpenAI/Claude API-key configuration, Twilio, existing VPS/domain with a setup guide. Runtime credentials and real-account tests remain separate prerequisites.
+Status: Publisher and Front Desk local slices implemented; remaining phases in progress, 2026-09-08. Dio resolved [B1–B3](OPEN_QUESTIONS.md): OpenAI/Claude API-key configuration, Twilio, existing VPS/domain with a setup guide. Runtime credentials and real-account tests remain separate prerequisites.
 
 ## Delivery rules
 
@@ -69,6 +69,8 @@ Acceptance:
 External dependencies: verified publishing specs, platform access, sample media. Direct Post public acceptance may remain unavailable for this internal-use product; manual acceptance does not silently replace the original live criterion.
 
 ## Phase 2 — Front Desk
+
+Local slice delivered; [setup, verification and external acceptance](PHASE_2.md).
 
 **Clickable result:** map/import knowledge → sync → paste a manual inquiry or ingest a webhook → view intent/entities/facts → inspect dry-run reply or approve a draft with escalation reason.
 

@@ -32,6 +32,8 @@ import {
   MediaLibrary,
   ChannelControls,
 } from "./features/publisher.js";
+import { Inbox } from "./features/inbox.js";
+import { Knowledge, Rules } from "./features/knowledge.js";
 import i18n from "./i18n.js";
 import "./style.css";
 import type { Actor } from "../server/auth/index.js";
@@ -229,6 +231,9 @@ function App() {
     ["overview", LayoutDashboard],
     ["publisher", CalendarDays],
     ["media", Fish],
+    ["inbox", Mail],
+    ["knowledge", ScrollText],
+    ["rules", ShieldCheck],
     ["channels", Link2],
     ["audit", ScrollText],
     ["system", Activity],
@@ -242,7 +247,15 @@ function App() {
         <div className="nav-label">{t("workspace")}</div>
         <nav>
           {nav
-            .filter(([p]) => canInspect || !["audit", "system"].includes(p))
+            .filter(
+              ([p]) =>
+                (canInspect || !["audit", "system"].includes(p)) &&
+                (!["knowledge", "rules"].includes(p) ||
+                  (["owner", "manager"].includes(actor.role) &&
+                    actor.channelScope.includes("*"))) &&
+                (p !== "inbox" ||
+                  ["owner", "manager", "agent"].includes(actor.role)),
+            )
             .map(([p, Icon]) => (
               <button
                 key={p}
@@ -324,6 +337,12 @@ function App() {
             <Publisher actor={actor} channels={channels} />
           ) : page === "media" ? (
             <MediaLibrary actor={actor} />
+          ) : page === "inbox" ? (
+            <Inbox actor={actor} channels={channels} />
+          ) : page === "knowledge" ? (
+            <Knowledge />
+          ) : page === "rules" ? (
+            <Rules />
           ) : page === "channels" ? (
             <Channels actor={actor} reload={reload} />
           ) : page === "audit" ? (
@@ -1125,8 +1144,14 @@ function System({ actor }: { actor: Actor }) {
             key={key}
             icon={<Clock3 />}
             label={t(key)}
-            value={t("notStarted")}
-            detail={t("phase2")}
+            value={data?.[key]?.status ?? t("notStarted")}
+            detail={
+              key === "webhooks"
+                ? `${data?.webhooks?.channels?.filter((c: any) => c.last_event).length ?? 0} / ${data?.webhooks?.channels?.length ?? 0}`
+                : data?.knowledge?.lastSync
+                  ? formatTime(data.knowledge.lastSync, actor)
+                  : t("notStarted")
+            }
           />
         ))}
       </div>

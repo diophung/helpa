@@ -18,6 +18,19 @@ const schema = z.object({
   LLM_MONTHLY_CAP_USD: z.coerce.number().min(0).max(100000).default(0),
   OPENAI_API_KEY: z.string().default(""),
   ANTHROPIC_API_KEY: z.string().default(""),
+  GOOGLE_SERVICE_ACCOUNT_FILE: z.string().default(""),
+  KNOWLEDGE_POLL_MINUTES: z.coerce.number().int().min(1).max(1440).default(10),
+  SMTP_HOST: z.string().default(""),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
+  SMTP_SECURE: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
+  SMTP_USER: z.string().default(""),
+  SMTP_PASSWORD: z.string().default(""),
+  MAIL_FROM: z.string().default(""),
+  NOTIFICATION_MODE: z.enum(["dry_run", "live"]).default("dry_run"),
+  META_WEBHOOK_VERIFY_TOKEN: z.string().default(""),
   META_APP_ID: z.string().default(""),
   META_APP_SECRET: z.string().default(""),
   META_GRAPH_VERSION: z

@@ -26,6 +26,8 @@ import {
   type FacebookConnection,
   type FacebookPage,
 } from "./channels/facebook.js";
+import { knowledgeRoutes } from "./knowledge/routes.js";
+import { inboxRoutes } from "./inbox/routes.js";
 import { tiktokRoutes } from "./channels/tiktok.js";
 import { publisherRoutes } from "./scheduler/routes.js";
 import { AppError } from "./errors.js";
@@ -110,6 +112,7 @@ export async function buildApp(
     if (req.url.startsWith("/api")) reply.header("cache-control", "no-store");
     if (
       ["POST", "PUT", "PATCH", "DELETE"].includes(req.method) &&
+      !(req.method === "POST" && req.url.split("?")[0] === "/webhooks/meta") &&
       req.headers.origin !== c.PUBLIC_URL
     )
       throw new AppError(403, "ORIGIN_REJECTED");
@@ -298,7 +301,7 @@ export async function buildApp(
         anthropic: !!c.ANTHROPIC_API_KEY,
       },
       smsProvider: "twilio",
-      llmExecutionAvailable: false,
+      llmExecutionAvailable: true,
     };
   });
   app.patch("/api/settings", async (req) => {
@@ -614,8 +617,56 @@ export async function buildApp(
       jobs: jobs.rows,
       operations: ops.rows,
       mode: c.HELPA_MODE,
-      webhooks: { status: "not_implemented", lastEvent: null },
-      knowledge: { status: "not_implemented", lastSync: null },
+      webhooks: {
+        status: "ready",
+        channels: (
+          await pool.query(
+            "SELECT c.id,c.display_name,max(m.received_at) AS last_event FROM channel c LEFT JOIN conversation v ON v.channel_id=c.id AND v.kind<>'manual' LEFT JOIN message m ON m.conversation_id=v.id WHERE c.business_id=$1 AND ($2 OR c.platform=ANY($3::text[])) GROUP BY c.id",
+            [
+              actor.businessId,
+              actor.channelScope.includes("*"),
+              actor.channelScope,
+            ],
+          )
+        ).rows,
+        failures:
+          actor.role === "owner"
+            ? Number(
+                (
+                  await pool.query(
+                    "SELECT count(*) FROM webhook_event WHERE status='failed'",
+                  )
+                ).rows[0].count,
+              )
+            : null,
+      },
+      knowledge: {
+        status: "ready",
+        lastSync: (
+          await pool.query(
+            "SELECT max(last_sync_at) AS last FROM knowledge_source WHERE business_id=$1",
+            [actor.businessId],
+          )
+        ).rows[0].last,
+      },
+      llm:
+        actor.role === "owner"
+          ? (
+              await pool.query(
+                "SELECT budget_month,sum(reserved_microusd)::text AS reserved_microusd,sum(charged_microusd)::text AS charged_microusd,count(*)::int AS calls FROM llm_call WHERE business_id=$1 GROUP BY budget_month ORDER BY budget_month DESC LIMIT 3",
+                [actor.businessId],
+              )
+            ).rows
+          : [],
+      notifications:
+        actor.role === "owner"
+          ? (
+              await pool.query(
+                "SELECT transport,status,count(*)::int AS count FROM notification WHERE business_id=$1 GROUP BY transport,status",
+                [actor.businessId],
+              )
+            ).rows
+          : [],
     };
   });
   app.post("/api/system/dry-run-probe", async (req) => {
@@ -653,6 +704,8 @@ export async function buildApp(
   });
   await publisherRoutes(app, pool, auth, c, boss);
   await tiktokRoutes(app, pool, auth, c);
+  await knowledgeRoutes(app, pool, auth, c);
+  await inboxRoutes(app, pool, auth, c);
   if (
     options.serveWeb !== false &&
     existsSync(resolve("dist/web/index.html"))

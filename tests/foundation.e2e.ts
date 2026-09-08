@@ -100,6 +100,52 @@ test("owner signup → TOTP → settings → real worker dry-run → logout/logi
     path: ".local/helpa-publisher-desktop.png",
     fullPage: true,
   });
+  await page.getByRole("button", { name: "Knowledge", exact: true }).click();
+  await page.getByText("Add source", { exact: true }).click();
+  await page.getByLabel("Source name").fill("Fixture product knowledge");
+  await page
+    .getByRole("button", { name: "Create source", exact: true })
+    .click();
+  await page.getByLabel("sku", { exact: true }).fill("T20");
+  await page.getByLabel("name_vi", { exact: true }).fill("Tôm sú size 20");
+  await page.getByLabel("aliases", { exact: true }).fill("tôm sú size 20");
+  await page.getByLabel("price", { exact: true }).fill("320000");
+  await page
+    .getByRole("button", { name: "Approve & save record", exact: true })
+    .click();
+  await expect(page.getByText(/Saved 1 rows/)).toBeVisible();
+  await page.getByRole("button", { name: "Inbox", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Paste a manual inquiry", exact: true })
+    .click();
+  await page.getByLabel("Customer reference").fill("Fixture customer");
+  await page
+    .getByLabel("Customer message")
+    .fill("Giá tôm sú size 20 bao nhiêu?");
+  await page
+    .getByRole("button", { name: "Create & analyze", exact: true })
+    .click();
+  await expect(page.getByLabel("Reply text to approve")).toBeVisible({
+    timeout: 20000,
+  });
+  await page.getByText(/Facts & source versions/).click();
+  await expect(
+    page.locator(".fact-row").filter({ hasText: "price" }).first(),
+  ).toContainText("320000");
+  await page
+    .getByLabel("Reply text to approve")
+    .fill("Nhân viên đã nhận câu hỏi của anh/chị.");
+  await page
+    .getByRole("button", { name: "Approve this reply", exact: true })
+    .click();
+  await expect(page.locator(".draft-card .pill")).toContainText(
+    "would_have_sent",
+    { timeout: 20000 },
+  );
+  await page.screenshot({
+    path: ".local/helpa-inbox-desktop.png",
+    fullPage: true,
+  });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Overview", exact: true }).click();
   expect(
