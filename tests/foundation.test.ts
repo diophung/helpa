@@ -39,6 +39,7 @@ const discovered = [
     id: "456",
     name: "Fixture Seafood Page",
     accessToken: "fixture-page-token-DO-NOT-EXPOSE",
+    userAccessToken: "fixture-user-token-DO-NOT-EXPOSE",
     tasks: ["CREATE_CONTENT"],
     scopes: ["pages_show_list"],
     expiresAt: null,
@@ -255,6 +256,7 @@ describe("foundation vertical slice", () => {
       "/api/channels/facebook/pending",
     );
     expect(pending.body).not.toContain(discovered[0].accessToken);
+    expect(pending.body).not.toContain(discovered[0].userAccessToken);
     expect(pending.json().pages[0].name).toBe(discovered[0].name);
     const select = await owner.request(
       "POST",
@@ -270,7 +272,10 @@ describe("foundation vertical slice", () => {
     expect(JSON.stringify(row)).not.toContain(discovered[0].accessToken);
     expect(
       decrypt(row.credentials_encrypted, `${businessId}:channel:${row.id}`, c),
-    ).toEqual({ accessToken: discovered[0].accessToken });
+    ).toEqual({
+      accessToken: discovered[0].accessToken,
+      userAccessToken: discovered[0].userAccessToken,
+    });
     for (const route of [
       "/api/channels",
       "/api/audit",
@@ -279,6 +284,7 @@ describe("foundation vertical slice", () => {
     ]) {
       const r = await owner.request("GET", route);
       expect(r.body).not.toContain(discovered[0].accessToken);
+      expect(r.body).not.toContain(discovered[0].userAccessToken);
       expect(r.body).not.toContain(c.META_APP_SECRET);
       expect(r.body).not.toContain("credentials_encrypted");
     }

@@ -62,6 +62,44 @@ test("owner signup → TOTP → settings → real worker dry-run → logout/logi
   await expect(
     page.getByText("outbound.would_have_sent", { exact: true }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Media", exact: true }).click();
+  await page
+    .getByLabel("Upload image or video (100 MB default limit)")
+    .setInputFiles(".local/publisher-fixture.mp4");
+  await expect(
+    page.locator(".media-card").getByText("ready", { exact: true }),
+  ).toBeVisible({ timeout: 20000 });
+  await page
+    .getByRole("button", { name: "Calendar & posts", exact: true })
+    .click();
+  await page.getByRole("button", { name: "New post", exact: true }).click();
+  await page.getByLabel("Internal title").fill("Arrival Reel — fixture");
+  await page
+    .getByLabel("Channel", { exact: true })
+    .selectOption({ label: "Fixture Facebook · facebook" });
+  await page.getByLabel("Format", { exact: true }).selectOption("reel");
+  await page
+    .getByLabel("Caption", { exact: true })
+    .fill("Hàng mới về. Fixture dry-run only.");
+  await page.getByLabel(/publisher-fixture.mp4/).check();
+  const local = new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 16);
+  await page.getByLabel("Publish time · Asia/Ho_Chi_Minh").fill(local);
+  await page
+    .getByRole("button", { name: "Save revision", exact: true })
+    .click();
+  await expect(page.locator(".post-card")).toContainText("Approval required");
+  await page.getByRole("button", { name: "Approve", exact: true }).click();
+  await expect(page.locator(".post-card")).toContainText("Would have sent", {
+    timeout: 20000,
+  });
+  await page.getByRole("button", { name: "Review", exact: true }).click();
+  await expect(page.locator(".payload")).toContainText('"format": "reel"');
+  await expect(page.locator(".payload")).toContainText('"sha256"');
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page.screenshot({
+    path: ".local/helpa-publisher-desktop.png",
+    fullPage: true,
+  });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Overview", exact: true }).click();
   expect(

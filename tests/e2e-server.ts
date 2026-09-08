@@ -1,3 +1,6 @@
+import { randomUUID } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { mkdirSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { Pool } from "../src/server/db/index.js";
 import { migrate } from "../src/server/db/migrate.js";
@@ -26,12 +29,42 @@ const env = {
   HELPA_MODE: "dry_run",
   LLM_MONTHLY_CAP_USD: "0",
   LOG_LEVEL: "silent",
+  MEDIA_DIR: `.local/e2e-media-${dbName}`,
 };
 await admin.query(`CREATE DATABASE "${dbName}"`);
 const pool = new Pool({ connectionString: url.toString() });
 await migrate(pool);
 await pool.end();
-const { app } = await buildApp(readConfig(env));
+mkdirSync(".local", { recursive: true });
+execFileSync("ffmpeg", [
+  "-nostdin",
+  "-v",
+  "error",
+  "-f",
+  "lavfi",
+  "-i",
+  "color=c=0x315e44:s=540x960:r=30",
+  "-t",
+  "3",
+  "-c:v",
+  "libx264",
+  "-pix_fmt",
+  "yuv420p",
+  "-threads",
+  "1",
+  "-y",
+  ".local/publisher-fixture.mp4",
+]);
+const { app, pool: appPool } = await buildApp(readConfig(env));
+app.addHook("onResponse", async (req, reply) => {
+  if (req.url === "/api/bootstrap" && reply.statusCode === 200) {
+    const b = (await appPool.query("SELECT id FROM business")).rows[0];
+    await appPool.query(
+      "INSERT INTO channel(id,business_id,platform,display_name,mode,status) VALUES($1,$2,'facebook','Fixture Facebook','dry_run','manual')",
+      [randomUUID(), b.id],
+    );
+  }
+});
 await app.listen({ host: "127.0.0.1", port: 3101 });
 const worker = spawn(
   process.execPath,

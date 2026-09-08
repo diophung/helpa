@@ -36,6 +36,7 @@ export type FacebookPage = {
   id: string;
   name: string;
   accessToken: string;
+  userAccessToken?: string;
   tasks: string[];
   scopes: string[];
   expiresAt: string | null;
@@ -46,7 +47,7 @@ export type FacebookConnection = {
   discover: (code: string) => Promise<FacebookPage[]>;
 };
 
-// Phase 0 requests only Page discovery. Publishing/messaging scopes are introduced with verified operations.
+// Scopes verified against the Pages Posts, Photos, Reels and Comments references.
 export function facebookConnection(
   c: Config,
   fetcher: typeof fetch = fetch,
@@ -110,7 +111,8 @@ export function facebookConnection(
         redirect_uri: callback,
         state,
         response_type: "code",
-        scope: "pages_show_list",
+        scope:
+          "pages_show_list,pages_manage_posts,pages_read_engagement,pages_manage_engagement",
       }).toString();
       return url.toString();
     },
@@ -146,6 +148,7 @@ export function facebookConnection(
             id: p.id,
             name: p.name,
             accessToken: p.access_token,
+            userAccessToken: long.access_token,
             tasks: p.tasks,
             scopes: details.scopes,
             expiresAt: details.expires_at

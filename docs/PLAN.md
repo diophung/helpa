@@ -1,6 +1,6 @@
 # Helpa delivery plan
 
-Status: Phase 0 in progress, 2026-09-08. Dio resolved [B1–B3](OPEN_QUESTIONS.md): OpenAI/Claude API-key configuration, Twilio, existing VPS/domain with a setup guide. Runtime credentials and real-account tests remain separate prerequisites.
+Status: Publisher local slice implemented; remaining phases in progress, 2026-09-08. Dio resolved [B1–B3](OPEN_QUESTIONS.md): OpenAI/Claude API-key configuration, Twilio, existing VPS/domain with a setup guide. Runtime credentials and real-account tests remain separate prerequisites.
 
 ## Delivery rules
 
@@ -44,6 +44,8 @@ Acceptance:
 External dependencies: B1–B3, public callback URL, Meta app/Page access. Missing Meta access permits a local demo but keeps acceptance item 2 open.
 
 ## Phase 1 — Publisher
+
+First local slice delivered; [evidence and remaining limits](PHASE_1.md).
 
 **Clickable result:** upload media → inspect validation/renditions → create channel variants → approve → schedule in Vietnam time → inspect exact dry-run payload/status → retry or complete a manual task.
 

@@ -9,7 +9,8 @@ const en = {
   settings: "Settings",
   workspace: "WORKSPACE",
   later: "COMING NEXT",
-  publisher: "Publisher · Phase 1",
+  publisher: "Calendar & posts",
+  media: "Media",
   inbox: "Inbox · Phase 2",
   team: "Team · Phase 3",
   signOut: "Sign out",
@@ -18,7 +19,7 @@ const en = {
   dryBanner:
     "Customer-facing platform writes are disabled. Account connection and read-only requests are allowed.",
   liveBanner:
-    "Live mode is configured. Publishing and replies are not implemented in this foundation release.",
+    "Live mode is configured. Approved posts can publish on channels set to live.",
   coverage: "Always here",
   coverageSub: "24 hours · 365 days",
   complaints: "Complaint alerts",
@@ -27,7 +28,7 @@ const en = {
   welcome: "A clear view of your back office.",
   intro:
     "Connect your Page, check the safeguards, and get ready for your first publishing workflow.",
-  foundation: "FOUNDATION / PHASE 0",
+  foundation: "SOCIAL BACK OFFICE",
   next: "What comes next",
   nextText:
     "Media, the content calendar, and post approvals arrive in Phase 1. Your customer data and voice samples will power Phase 2.",
@@ -195,6 +196,7 @@ const en = {
   },
 };
 const vi: typeof en = {
+  media: "Thư viện",
   tagline: "Trợ lý quản lý kênh bán hàng",
   overview: "Tổng quan",
   channels: "Kênh kết nối",

@@ -2,7 +2,7 @@
 
 A self-hosted back office for a Vietnamese seafood business: connect social accounts, schedule content, answer customers from approved facts, and delegate work without sharing platform passwords.
 
-**Phase 0 foundation is implemented.** Owner setup/login with TOTP, Facebook Page OAuth and encrypted tokens, Vietnamese/English UI, scoped authorization, settings, audit trail, Postgres jobs, a worker diagnostic, and Docker Compose with Caddy HTTPS are available. Real Facebook account acceptance still requires your app credentials and an OAuth run. Publishing, inquiries, SMS invites and analytics follow in Phases 1–5; they are not simulated as working features.
+**Foundation and the first Publisher slice are implemented.** Secure owner setup/MFA, Facebook/TikTok OAuth, encrypted tokens, scoped access, private media/ffmpeg renditions, calendar variants/approvals and a durable dry-run publishing worker are runnable. See [Publisher evidence and limitations](docs/PHASE_1.md). Real-account publication still needs credentials and live acceptance. Inbox, delegation and analytics are the next slices.
 
 ## Run locally with Docker
 
@@ -39,7 +39,7 @@ docker run -d --name helpa-dev-postgres \
   -p 127.0.0.1:54329:5432 postgres:17-alpine
 ```
 
-Tests use local Postgres and synthetic API fixtures; no platform or LLM credentials are needed and no external API is called. Dependency/browser installation is a separate online setup step. The end-to-end test covers signup, TOTP, settings, a real worker diagnostic, audit visibility, mobile layout and re-login. A scheduled-Reel E2E belongs to Phase 1; the diagnostic is not that publishing acceptance test.
+Tests use local Postgres and synthetic API fixtures; no platform or LLM credentials are needed and no external API is called. Dependency/browser installation is a separate online setup step. The end-to-end test covers signup, TOTP, settings, a real worker diagnostic, audit visibility, mobile layout and re-login. It also uploads synthetic media, creates/approves a Reel and observes the real worker dry-run payload. Install ffmpeg/ffprobe for host testing (the Docker image includes them).
 
 ## Decisions and documentation
 

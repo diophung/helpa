@@ -11,3 +11,5 @@ backups/
 *.log
 .DS_Store
 docs/inputs/private/
+
+media/

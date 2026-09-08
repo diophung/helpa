@@ -26,6 +26,8 @@ import {
   type FacebookConnection,
   type FacebookPage,
 } from "./channels/facebook.js";
+import { tiktokRoutes } from "./channels/tiktok.js";
+import { publisherRoutes } from "./scheduler/routes.js";
 import { AppError } from "./errors.js";
 import { startQueue, probeQueue } from "./queue.js";
 
@@ -400,7 +402,7 @@ export async function buildApp(
       })
       .parse(req.query);
     const state = await pool.query(
-      "DELETE FROM oauth_state WHERE state_hash=$1 AND business_id=$2 AND user_id=$3 AND session_id=$4 AND expires_at>now() RETURNING state_hash",
+      "DELETE FROM oauth_state WHERE state_hash=$1 AND business_id=$2 AND user_id=$3 AND session_id=$4 AND expires_at>now() AND provider='facebook' RETURNING state_hash",
       [hash(b.state), actor.businessId, actor.userId, actor.sessionId],
     );
     if (!state.rowCount) throw new AppError(400, "OAUTH_STATE_INVALID");
@@ -460,7 +462,7 @@ export async function buildApp(
     );
     return {
       selection: r.rows[0].id,
-      pages: pages.map(({ accessToken, ...p }) => p),
+      pages: pages.map(({ accessToken, userAccessToken, ...p }) => p),
     };
   });
   app.post("/api/channels/facebook/select", async (req) => {
@@ -494,7 +496,10 @@ export async function buildApp(
       );
       const id = existing.rows[0]?.id ?? randomUUID();
       const encrypted = encrypt(
-        { accessToken: page.accessToken },
+        {
+          accessToken: page.accessToken,
+          userAccessToken: page.userAccessToken,
+        },
         `${actor.businessId}:channel:${id}`,
         c,
       );
@@ -513,7 +518,9 @@ export async function buildApp(
           page.scopes,
           JSON.stringify({
             connection: "verified",
-            publish: "unavailable_phase_1",
+            publish: page.scopes.includes("pages_manage_posts")
+              ? "available"
+              : "permission_missing",
             inbox: "unavailable_phase_2",
             tasks: page.tasks,
           }),
@@ -593,8 +600,12 @@ export async function buildApp(
         [actor.businessId],
       ),
       pool.query(
-        "SELECT id,operation_key,payload,mode,outcome,created_at FROM outbound_operation WHERE business_id=$1 ORDER BY created_at DESC LIMIT 10",
-        [actor.businessId],
+        "SELECT o.id,o.operation_key,o.payload,o.mode,o.outcome,o.created_at FROM outbound_operation o LEFT JOIN channel c ON c.id=o.channel_id WHERE o.business_id=$1 AND ($2 OR c.platform=ANY($3::text[]) OR o.channel_id IS NULL) ORDER BY o.created_at DESC LIMIT 10",
+        [
+          actor.businessId,
+          actor.channelScope.includes("*"),
+          actor.channelScope,
+        ],
       ),
     ]);
     return {
@@ -640,6 +651,8 @@ export async function buildApp(
     });
     return { operationKey };
   });
+  await publisherRoutes(app, pool, auth, c, boss);
+  await tiktokRoutes(app, pool, auth, c);
   if (
     options.serveWeb !== false &&
     existsSync(resolve("dist/web/index.html"))

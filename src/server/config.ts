@@ -24,6 +24,25 @@ const schema = z.object({
     .string()
     .regex(/^v\d+\.0$/)
     .default("v25.0"),
+  TIKTOK_CLIENT_KEY: z.string().default(""),
+  TIKTOK_CLIENT_SECRET: z.string().default(""),
+  TIKTOK_DIRECT_POST_ELIGIBILITY: z
+    .enum(["unverified", "approved"])
+    .default("unverified"),
+  TIKTOK_URL_OWNERSHIP_VERIFIED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
+  MEDIA_DIR: z.string().default("media"),
+  MEDIA_MAX_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(536870912)
+    .default(104857600),
+  MEDIA_MAX_DURATION: z.coerce.number().positive().max(3600).default(600),
+  FFPROBE_PATH: z.string().default("ffprobe"),
+  FFMPEG_PATH: z.string().default("ffmpeg"),
   LOG_LEVEL: z
     .enum(["debug", "info", "warn", "error", "silent"])
     .default("info"),

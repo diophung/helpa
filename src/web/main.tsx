@@ -27,6 +27,11 @@ import {
   Users,
   CalendarDays,
 } from "lucide-react";
+import {
+  Publisher,
+  MediaLibrary,
+  ChannelControls,
+} from "./features/publisher.js";
 import i18n from "./i18n.js";
 import "./style.css";
 import type { Actor } from "../server/auth/index.js";
@@ -222,6 +227,8 @@ function App() {
     );
   const nav = [
     ["overview", LayoutDashboard],
+    ["publisher", CalendarDays],
+    ["media", Fish],
     ["channels", Link2],
     ["audit", ScrollText],
     ["system", Activity],
@@ -248,21 +255,6 @@ function App() {
               </button>
             ))}
         </nav>
-        <div className="nav-label later-label">{t("later")}</div>
-        <div className="future-nav">
-          <span>
-            <CalendarDays size={18} />
-            {t("publisher")}
-          </span>
-          <span>
-            <Mail size={18} />
-            {t("inbox")}
-          </span>
-          <span>
-            <Users size={18} />
-            {t("team")}
-          </span>
-        </div>
         <div className="sidebar-foot">
           <div className="avatar">{actor.name.slice(0, 1).toUpperCase()}</div>
           <div>
@@ -328,6 +320,10 @@ function App() {
               channels={channels}
               navigate={navigate}
             />
+          ) : page === "publisher" ? (
+            <Publisher actor={actor} channels={channels} />
+          ) : page === "media" ? (
+            <MediaLibrary actor={actor} />
           ) : page === "channels" ? (
             <Channels actor={actor} reload={reload} />
           ) : page === "audit" ? (
@@ -863,6 +859,14 @@ function Channels({
               </Pill>
             </div>
             <h2>{ch.display_name}</h2>
+            <ChannelControls
+              actor={actor}
+              channel={ch}
+              reload={async () => {
+                await load();
+                await reload();
+              }}
+            />
             {ch.external_id && <p className="mono">{ch.external_id}</p>}
             {ch.platform === "tiktok" ? (
               <p>{t("tiktokNote")}</p>

@@ -12,5 +12,6 @@ export async function startQueue(c: Config) {
     retryDelay: 5,
     retryBackoff: true,
   });
+  await boss.createQueue("helpa-media-rendition", { retryLimit: 0 });
   return boss;
 }

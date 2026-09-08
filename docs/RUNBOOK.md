@@ -98,3 +98,19 @@ TikTok audit preparation: confirm the actual app purpose is eligible (internal u
 ## Extend a channel
 
 Keep SDK/transport details in channels; implement the ChannelAdapter capabilities and methods; verify official operations and fixtures; start in manual/dry-run; implement signature/dedup and policy before ingestion/replies; use current server authorization, approval, factual checks and one outbound audit boundary. Add real-account contract recordings after access is available. Core feature modules must not call platform HTTP directly.
+
+## Publishing operations
+
+Run migrations with the new image before starting app/worker. Media storage is the existing private volume; ffmpeg/ffprobe are included in the runtime image. For host development, install them and leave their executable names in `.env`, or supply absolute `FFMPEG_PATH`/`FFPROBE_PATH`.
+
+Open Calendar & posts → Pause publishing to stop future publishing dispatches. This is independent of the auto-reply pause. In-flight network calls cannot be recalled. For a hard outage, stop the worker. A draft edit or drag reschedule clears approval. Reapprove the exact revision; the approval names and audit remain retained.
+
+A `would_have_sent` is terminal. To intentionally send it live, duplicate, review the payload, schedule and approve the new revision. Set both HELPA_MODE=live (restart app/worker) and the individual channel's mode to live. Never convert dry-run history into successful live sends.
+
+For `needs_action`, inspect the error and exact revision. An unknown external outcome needs a check in the platform before manual completion. Do not remove `publish_step` records or blindly retry. Confirm the actual permalink when using manual publication. Known successful substeps can be resumed through the resume API; unfinished/unknown substeps block it. Reel processing may take longer than one worker attempt.
+
+### TikTok connection and audit preparation
+
+Register `PUBLIC_URL/api/channels/tiktok/callback` in Login Kit Web. Configure TIKTOK_CLIENT_KEY and TIKTOK_CLIENT_SECRET, restart, then Channels → Connect TikTok. Helpa requests video.publish/video.upload and records actual granted scopes. Verify ownership of PUBLIC_URL in TikTok's media URL settings before enabling TIKTOK_URL_OWNERSHIP_VERIFIED. The server generates signed media URLs lasting one hour; no media transfer endpoint is available in global dry-run.
+
+Keep TIKTOK_DIRECT_POST_ELIGIBILITY=unverified until TikTok confirms this internal-use product is eligible and audited. An existing app grant is not this confirmation. Review the official content-sharing checklist: current creator identity, privacy choices without a preset, explicit interaction consent, preview, commercial disclosure, music confirmation and an affirmative export action. Inbox upload requires the creator to finish in the TikTok app. Manual export stays available without a platform token. See PHASE_1.md for remaining acceptance and transport limitations.
