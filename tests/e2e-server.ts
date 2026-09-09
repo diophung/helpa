@@ -87,7 +87,7 @@ async function close() {
     else worker.once("exit", () => resolve());
   });
   await app.close();
-  await admin.query(`DROP DATABASE IF EXISTS "${dbName}" WITH (FORCE)`);
+  await admin.query(`DROP DATABASE IF EXISTS "${dbName}"`);
   await admin.end();
   process.exit(0);
 }

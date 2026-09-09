@@ -98,7 +98,7 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   if (b) await b.app.close();
-  await admin.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
+  await admin.query(`DROP DATABASE IF EXISTS "${name}"`);
   await admin.end();
 });
 
