@@ -214,11 +214,26 @@ export function runEngine(
   const facts: Fact[] = [];
   const sentences: string[] = [];
   const en = a.language === "en";
+  // Voice formatting applies only to style text, never to immutable source fields.
+  const style = (value: string) => {
+    const addressed = value.replace(
+      /\{addressing\}|anh\/chị/gi,
+      () => voice.addressing,
+    );
+    return voice.emoji
+      ? addressed
+      : addressed
+          .replace(
+            /[\p{Extended_Pictographic}\p{Emoji_Modifier}\uFE0F\u200D]/gu,
+            "",
+          )
+          .trim();
+  };
   const disclosure = en
     ? defaultVoice.disclosure_en
     : defaultVoice.disclosure_vi;
   const holdingText = [
-    en ? voice.holding_en : voice.holding_vi,
+    style(en ? voice.holding_en : voice.holding_vi),
     disclosure,
   ].join("\n");
   const get = (r: Knowledge, field: string, maxHours: number) => {
@@ -369,7 +384,7 @@ export function runEngine(
   if (a.intents.includes("other")) reasons.push("HUMAN_REVIEW_REQUIRED");
   if (a.intents.includes("complaint")) reasons.push("COMPLAINT_EMAIL_ONLY");
   if (a.intents.includes("compliment"))
-    sentences.push(en ? voice.thanks_en : voice.thanks_vi);
+    sentences.push(style(en ? voice.thanks_en : voice.thanks_vi));
   let autonomy = "auto_send";
   const levels = {
     auto_send: 0,
@@ -385,10 +400,10 @@ export function runEngine(
   else if (reasons.length)
     autonomy = autonomy === "human_only" ? "human_only" : "draft_for_approval";
   const expected = [
-    en ? voice.greeting_en : voice.greeting_vi,
+    style(en ? voice.greeting_en : voice.greeting_vi),
     ...sentences,
-    en ? voice.signoff_en : voice.signoff_vi,
-    en ? voice.disclosure_en : voice.disclosure_vi,
+    style(en ? voice.signoff_en : voice.signoff_vi),
+    style(en ? voice.disclosure_en : voice.disclosure_vi),
     disclosure,
   ]
     .filter((v, i, all) => !!v && all.indexOf(v) === i)

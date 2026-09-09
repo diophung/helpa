@@ -253,3 +253,31 @@ it("rejects blank or contradictory facts and derives stock only from explicit qu
       .stock_status,
   ).toBe("out");
 });
+
+it("applies addressing and emoji preferences only to voice text", () => {
+  const voice = {
+    ...defaultVoice,
+    addressing: "bạn",
+    thanks_vi: "Cảm ơn anh/chị 🙂",
+    emoji: false,
+  };
+  const r = runEngine(
+    "Cảm ơn shop",
+    analysis(["compliment"]),
+    records,
+    rules,
+    voice,
+    now,
+  );
+  expect(r.text).toContain("Cảm ơn bạn");
+  expect(r.text).not.toContain("🙂");
+  const withEmoji = runEngine(
+    "Cảm ơn shop",
+    analysis(["compliment"]),
+    records,
+    rules,
+    { ...voice, emoji: true },
+    now,
+  );
+  expect(withEmoji.text).toContain("🙂");
+});

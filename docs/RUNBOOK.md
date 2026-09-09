@@ -118,3 +118,14 @@ Keep TIKTOK_DIRECT_POST_ELIGIBILITY=unverified until TikTok confirms this intern
 ## Knowledge, webhooks and escalation
 
 Follow [Front Desk setup](PHASE_2.md) for source mapping, freshness, Google service-account mounts, Meta subscriptions and SMTP. Keep source `updated_at` (and optional product `price_updated_at` / `stock_updated_at`) truthful. Refreshing an old sheet without confirming its contents must not replace timestamps with the import time. Keep the last good version on validation errors. Pause automatic replies before incident investigation; an already approved human reply may still dispatch, so disconnect the channel to stop all channel sends. Unknown reply outcomes require checking the platform before any new manual send.
+
+## Meta review and real-account checklist
+
+Use the existing app's dashboard to verify its current access level; this does not require creating another app or reapplying for already granted access.
+
+1. Confirm app identity, configured business, Page assignment/tasks, public HTTPS domain and exact OAuth redirect. Complete any verification requirements shown by the app dashboard.
+2. Confirm the scopes used by each enabled workflow: Page discovery, posts/photos/videos/Reels, engagement/comments, Messenger and Page webhook management. Optional reporting additionally needs insights access. Record the granted set from Helpa Channels.
+3. Configure the webhook verification callback and subscribe the target Page to messages/feed. Verify a real incoming message/comment is acknowledged once and appears in the correct channel; repeat delivery must not duplicate the inquiry.
+4. Prepare truthful reviewer access instructions and recordings: login with required MFA, Page connection, content preview/approval, publishing, customer inquiry, human escalation and disconnect. Keep credentials out of recordings and public documents.
+5. Ensure required public business/app information, privacy and data-deletion instructions are present in the app dashboard. Follow its current review prompts rather than assuming a development token authorizes public customer traffic.
+6. Run the live acceptance scenarios only on the intended authorized Page after the dry-run review. Record actual post IDs/permalinks, message IDs, scopes, timestamps and policy outcomes in private acceptance notes. Automated Messenger replies stay within the implemented 24-hour window; Helpa does not use a human-agent tag to extend automation.
