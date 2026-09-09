@@ -161,6 +161,15 @@ test("owner signup → TOTP → settings → real worker dry-run → logout/logi
     path: ".local/helpa-reports-desktop.png",
     fullPage: true,
   });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth),
+  ).toBeLessThanOrEqual(390);
+  await page.screenshot({
+    path: ".local/helpa-reports-mobile.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page
     .getByRole("button", { name: "Evidence & advice", exact: true })
     .click();

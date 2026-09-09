@@ -26,7 +26,7 @@ export BACKUP_DIR='/your/backup/destination'
 bash scripts/backup.sh
 ```
 
-The script stops app/worker briefly, takes a custom-format pg_dump and media tar, records the Git revision/UTC creation time, encrypts the archive and restarts services. Caddy may return 502 during this maintenance window. Incomplete encrypted output keeps a `.partial` suffix. The temporary plaintext working directory is private and removed on exit; place the host temporary directory on an encrypted filesystem. Only run one backup process at a time.
+The script stops app/worker briefly, takes a custom-format pg_dump and media tar, records the Git revision/UTC creation time, encrypts the archive and restarts only the services that were running before backup. An already-stopped worker stays stopped. Caddy may return 502 during this maintenance window. Incomplete encrypted output keeps a `.partial` suffix. The temporary plaintext working directory is private and removed on exit; place the host temporary directory on an encrypted filesystem. Only run one backup process at a time.
 
 Schedule nightly using your host scheduler. For example, install a root/operator-readable wrapper that exports the recipient/destination and calls the script from `/opt/helpa`; add a cron entry with `CRON_TZ=Asia/Ho_Chi_Minh` and `15 3 * * * /opt/helpa-backup-wrapper`. Use `flock` in that wrapper to prevent overlap. Configure the host's existing monitoring to alert on a nonzero exit or an archive older than 26 hours. The repository does not install a cron job or connect an alerting account. Copy the encrypted archive off-host after success and verify that copy. Proposed RPO is 24 hours; RTO target is 4 hours, to be measured on your host.
 

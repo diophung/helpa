@@ -53,3 +53,5 @@ Front Desk: [knowledge, inbox, rules, providers and validation](docs/PHASE_2.md)
 Team access: [email/SMS invitations, TOTP, duty schedule and token maintenance](docs/PHASE_3.md).
 
 Reports and advice: [source metrics, operations, weekly digests and reviewed proposals](docs/PHASE_4_5.md).
+
+Current local checks and remaining real-account acceptance: [VALIDATION.md](docs/VALIDATION.md).

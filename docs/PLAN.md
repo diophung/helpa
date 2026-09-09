@@ -1,6 +1,6 @@
 # Helpa delivery plan
 
-Status: Phases 0–5 have local implementation slices; final validation and real-account acceptance remain open, 2026-09-08. Dio resolved [B1–B3](OPEN_QUESTIONS.md): OpenAI/Claude API-key configuration, Twilio, existing VPS/domain with a setup guide. Runtime credentials and real-account tests remain separate prerequisites.
+Status: Phases 0–5 have locally verified implementation slices; real-account acceptance remains open, 2026-09-08. Dio resolved [B1–B3](OPEN_QUESTIONS.md): OpenAI/Claude API-key configuration, Twilio, existing VPS/domain with a setup guide. Runtime credentials and real-account tests remain separate prerequisites.
 
 ## Delivery rules
 
@@ -53,7 +53,7 @@ Scope:
 
 - Local volume media uploads; ffprobe metadata, thumbnails, bounded ffmpeg jobs; per-capability size/duration/codec/aspect checks from current docs. Optional S3 storage interface. Show rejection reasons before schedule.
 - Posts/variants, captions/hashtags, Facebook first-comment, text/photo/multi-photo/video/Reels as supported per channel. Unsupported combinations become explicit manual tasks, never implicit format conversions.
-- Calendar month/week/list, drag reschedule, duplicate, per-variant time, recurring templates expanded in business timezone. Read-only best-time placeholder until metrics exist.
+- Calendar month/week/list, drag reschedule, duplicate, per-variant time, recurring templates expanded in business timezone. Evidence-based best-time hints activate when enough metrics exist.
 - Persistent jobs; atomic scheduling; immutable approved revisions; idempotency and resumable publication substeps; bounded exponential retry; reconciliation after ambiguous timeouts.
 - Facebook formats only after official API verification. TikTok Direct Post capability path, gated by actual eligibility/authorization; inbox-upload capability where granted; manual export otherwise. Persistent mode/eligibility banner and explicit creator consent fields.
 - Post approval toggle; Manager/Owner approvals; payload preview; exact outbound attempt audit and plain-language errors. Apply forbidden-claim checks to any generated post copy; do not silently rewrite human copy.
@@ -140,3 +140,5 @@ Acceptance: at least three actionable, evidence-linked recommendations in a real
 - Offline CI: lint/typecheck, targeted units, Postgres integration, recorded adapter contracts, golden set, Playwright dry-run scheduling flow. No real secrets/network APIs in offline tests.
 - Run backup/restore in isolation before production, confirm media references and required encryption keys, resume restored jobs only after external-outcome reconciliation. Demonstrate incident pause, token rotation, and new-adapter procedure.
 - Capture each phase's commands, results, demo instructions, and unresolved external prerequisites in its delivery note; commit only the verified slice. Elapsed app review/audit time is not an engineering estimate.
+
+Current verification: [VALIDATION.md](VALIDATION.md), including automated checks, Docker/HTTPS, backup/restore and remaining real-account acceptance.
