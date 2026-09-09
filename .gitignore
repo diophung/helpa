@@ -232,4 +232,4 @@ backups/
 .DS_Store
 docs/inputs/private/
 
-media/
+/media/
