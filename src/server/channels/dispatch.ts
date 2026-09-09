@@ -10,7 +10,7 @@ export function effectiveMode(
 ) {
   return global === "dry_run" ? "dry_run" : channel;
 }
-// No live publishing transport is registered in Phase 0. New outbound features must extend this boundary.
+// Diagnostic only. Publisher and reply dispatchers enforce the same dry-run boundary.
 export async function recordDryRun(
   pool: PgPool,
   c: Config,

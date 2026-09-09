@@ -15,6 +15,8 @@ const en = {
   knowledge: "Knowledge",
   rules: "Rules & voice",
   security: "Security",
+  reports: "Reports",
+  analyst: "Evidence & advice",
   team: "Team",
   signOut: "Sign out",
   dryRun: "Dry-run mode",
@@ -50,7 +52,7 @@ const en = {
   factsDetail:
     "Customer data and brand-voice examples are still awaiting your Markdown files.",
   phaseNote:
-    "This release connects accounts and verifies the foundation. It does not publish posts or reply to customers.",
+    "Publishing and replies follow the active mode, approval rules and source checks.",
   channelsIntro:
     "Connect business accounts without sharing your social login with delegates.",
   connectFacebook: "Connect Facebook Page",
@@ -201,6 +203,8 @@ const vi: typeof en = {
   knowledge: "Nguồn kiến thức",
   rules: "Quy tắc & giọng văn",
   security: "Bảo mật",
+  reports: "Báo cáo",
+  analyst: "Dữ liệu & gợi ý",
   media: "Thư viện",
   tagline: "Trợ lý quản lý kênh bán hàng",
   overview: "Tổng quan",
@@ -219,7 +223,7 @@ const vi: typeof en = {
   dryBanner:
     "Không đăng bài hay gửi tin nhắn đến khách. Kết nối tài khoản và đọc dữ liệu vẫn được phép.",
   liveBanner:
-    "Đã cấu hình chế độ thật. Bản nền tảng này chưa có tính năng đăng bài hoặc trả lời khách.",
+    "Chế độ thật đã bật. Kênh ở chế độ thật có thể đăng bài và gửi phản hồi theo quy tắc đã duyệt.",
   coverage: "Luôn sẵn sàng",
   coverageSub: "24 giờ · 365 ngày",
   complaints: "Thông báo khiếu nại",
@@ -228,10 +232,10 @@ const vi: typeof en = {
   welcome: "Quản lý cửa hàng, rõ ràng hơn.",
   intro:
     "Kết nối Trang, kiểm tra các lớp bảo vệ và chuẩn bị cho quy trình đăng bài đầu tiên.",
-  foundation: "NỀN TẢNG / GIAI ĐOẠN 0",
+  foundation: "TRỢ LÝ MẠNG XÃ HỘI",
   next: "Bước tiếp theo",
   nextText:
-    "Thư viện ảnh, lịch đăng bài và duyệt nội dung có ở giai đoạn 1. Dữ liệu sản phẩm và mẫu giọng văn sẽ phục vụ giai đoạn 2.",
+    "Lên lịch bài đăng, duyệt phản hồi và quản lý dữ liệu trợ lý sử dụng. Thêm dữ liệu kinh doanh và mẫu giọng văn để bắt đầu.",
   connected: "Trang đã kết nối",
   connectedSub: "Trang Facebook đã xác minh qua OAuth",
   mode: "Chế độ gửi",
@@ -247,7 +251,7 @@ const vi: typeof en = {
   factsDetail:
     "Đang chờ tệp Markdown chứa dữ liệu khách hàng và mẫu giọng văn của bạn.",
   phaseNote:
-    "Bản này kết nối tài khoản và kiểm tra nền tảng. Chưa đăng bài hay trả lời khách.",
+    "Bài đăng và phản hồi tuân theo chế độ hoạt động, quy tắc duyệt và kiểm tra dữ liệu.",
   channelsIntro:
     "Kết nối tài khoản kinh doanh mà không chia sẻ mật khẩu mạng xã hội cho nhân viên.",
   connectFacebook: "Kết nối Trang Facebook",

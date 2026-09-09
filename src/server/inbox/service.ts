@@ -11,10 +11,7 @@ import { runEngine, fallbackAnalysis, factsFresh } from "./engine.js";
 import { can } from "../../shared/permissions.js";
 import { effectiveMode } from "../channels/dispatch.js";
 import { decrypt } from "../channels/crypto.js";
-import {
-  metaReplyPayload,
-  sendMetaReply,
-} from "../channels/facebook-messaging.js";
+import { channelAdapter, type ReplySender } from "../channels/adapter.js";
 export async function ingestMessage(
   db: Pick<PgPool | PoolClient, "query">,
   input: {
@@ -262,7 +259,7 @@ export async function dispatchReply(
   draftId: string,
   kind: "reply" | "holding",
   now = new Date(),
-  sender = sendMetaReply,
+  sender?: ReplySender,
 ) {
   const lock = await pool.connect();
   let locked = false;
@@ -469,14 +466,22 @@ export async function dispatchReply(
         `${d.business_id}:channel:${d.channel_id}`,
         c,
       );
-      const payload = metaReplyPayload(
-        d.conversation_kind,
-        d.page_id,
-        d.customer_id,
-        d.thread_external_id.replace(/^comment:/, ""),
+      const adapter = channelAdapter(d.platform, {
+        config: c,
+        credentials: token,
+      });
+      const payload = adapter.prepareReply({
+        kind: d.conversation_kind,
+        pageId: d.page_id,
+        customerId: d.customer_id,
+        threadId: d.thread_external_id,
         text,
-      );
-      const r = await sender(c, token.accessToken, payload);
+      });
+      const r = sender
+        ? await sender(c, token.accessToken, payload)
+        : await adapter.sendReply(payload);
+      if (!r.id) throw new AppError(409, "MANUAL_REPLY_REQUIRED");
+      const externalId = r.id;
       await transaction(pool, async (db) => {
         await db.query(
           "UPDATE reply_delivery SET status='sent',platform_id=$2,completed_at=now() WHERE id=$1",
@@ -492,7 +497,7 @@ export async function dispatchReply(
           channelId: d.channel_id,
           threadId: d.thread_external_id,
           customerId: d.customer_id,
-          externalId: r.id,
+          externalId,
           kind: d.conversation_kind,
           text,
           sentAt: now.toISOString(),
@@ -515,15 +520,25 @@ export async function dispatchReply(
       await block("EXTERNAL_OUTCOME_UNKNOWN");
     }
     async function block(reason: string) {
-      if (kind === "holding")
-        await pool.query(
-          "INSERT INTO reply_delivery(id,business_id,draft_id,kind,payload,status,error) VALUES($1,$2,$3,'holding','{}','blocked',$4) ON CONFLICT(draft_id,kind) DO NOTHING",
-          [randomUUID(), d.business_id, draftId, reason],
+      await transaction(pool, async (db) => {
+        if (kind === "holding")
+          await db.query(
+            "INSERT INTO reply_delivery(id,business_id,draft_id,kind,payload,status,error) VALUES($1,$2,$3,'holding','{}','blocked',$4) ON CONFLICT(draft_id,kind) DO NOTHING",
+            [randomUUID(), d.business_id, draftId, reason],
+          );
+        const changed = await db.query(
+          "UPDATE reply_draft SET status='needs_approval',checks=jsonb_set(checks,'{reasons}',coalesce(checks->'reasons','[]')||to_jsonb($2::text)),updated_at=now() WHERE id=$1 AND NOT(coalesce(checks->'reasons','[]') ? $2) RETURNING id",
+          [draftId, reason],
         );
-      await pool.query(
-        "UPDATE reply_draft SET status='needs_approval',checks=jsonb_set(checks,'{reasons}',coalesce(checks->'reasons','[]')||to_jsonb($2::text)),updated_at=now() WHERE id=$1",
-        [draftId, reason],
-      );
+        if (changed.rowCount)
+          await audit(db, {
+            businessId: d.business_id,
+            channelId: d.channel_id,
+            actorType: "worker",
+            action: "reply.blocked",
+            payload: { draftId, kind, reason },
+          });
+      });
     }
   } finally {
     if (locked)

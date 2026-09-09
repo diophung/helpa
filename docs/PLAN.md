@@ -1,6 +1,6 @@
 # Helpa delivery plan
 
-Status: Publisher, Front Desk and Key Cabinet local slices implemented; remaining phases in progress, 2026-09-08. Dio resolved [B1–B3](OPEN_QUESTIONS.md): OpenAI/Claude API-key configuration, Twilio, existing VPS/domain with a setup guide. Runtime credentials and real-account tests remain separate prerequisites.
+Status: Phases 0–5 have local implementation slices; final validation and real-account acceptance remain open, 2026-09-08. Dio resolved [B1–B3](OPEN_QUESTIONS.md): OpenAI/Claude API-key configuration, Twilio, existing VPS/domain with a setup guide. Runtime credentials and real-account tests remain separate prerequisites.
 
 ## Delivery rules
 
@@ -115,6 +115,8 @@ Acceptance:
 
 ## Phase 4 — Dashboard
 
+Local reporting delivered; [coverage and limits](PHASE_4_5.md).
+
 **Clickable result:** select 28 days/channel → compare audience and operations trends → inspect evidence and best-time hints → opt into weekly digest.
 
 Scope: capability-aware daily immutable metric snapshots, supported Facebook/TikTok audience measures; operations response/resolution/approval metrics and automation/escalation rates; interaction hour-of-week and returning customers; 1/7/28/90-day ranges and previous-period comparisons; optional exact order-link conversion/revenue; opt-in digest with five largest changes. No fabricated metrics for unsupported permissions.
@@ -122,6 +124,8 @@ Scope: capability-aware daily immutable metric snapshots, supported Facebook/Tik
 Acceptance: real 28-day data with source/fetch times and comparison, or clearly incomplete history until 28 days accrue; correct handling of missing data and zero denominators; mobile UI; idempotent digest delivery; reproducible aggregates and timezone boundaries. External dependency: granted metrics capabilities and elapsed history; no invented backfill.
 
 ## Phase 5 — Analyst
+
+Local detectors and human-reviewed proposals delivered; [coverage and limits](PHASE_4_5.md).
 
 **Clickable result:** read weekly insights → open underlying counts/posts → review a prefilled scheduling/FAQ/rule change → explicitly apply it.
 

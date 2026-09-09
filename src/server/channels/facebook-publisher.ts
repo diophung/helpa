@@ -33,7 +33,18 @@ export function facebookPublisher(
     host = base,
     headers: Record<string, string> = {},
   ) {
-    const url = new URL(path, host);
+    // Upload session IDs contain a colon. Append them as a path, never as a URL scheme.
+    const url = new URL(host + path.replace(/^\/+/, ""));
+    if (
+      url.protocol !== "https:" ||
+      !["graph.facebook.com", "graph-video.facebook.com"].includes(
+        url.hostname,
+      ) ||
+      url.port ||
+      url.username ||
+      url.password
+    )
+      throw new AppError(502, "META_ENDPOINT_REJECTED");
     url.searchParams.set(
       "appsecret_proof",
       createHmac("sha256", c.META_APP_SECRET).update(otherToken).digest("hex"),
@@ -81,9 +92,15 @@ export function facebookPublisher(
   }
   const caption = (p: PublishPayload) =>
     [p.caption, p.hashtags.join(" ")].filter(Boolean).join("\n");
+  const objectId = (id: unknown): string => {
+    if (typeof id !== "string" || !/^\d+(?:_\d+)?$/.test(id))
+      throw new AppError(502, "EXTERNAL_OUTCOME_UNKNOWN");
+    return id;
+  };
   return {
     async publish(p) {
       if (!p.pageId) throw new AppError(409, "CHANNEL_NOT_CONNECTED");
+      objectId(p.pageId);
       let id: string;
       if (p.format === "text") {
         const body = { message: caption(p), published: true };
@@ -122,7 +139,7 @@ export function facebookPublisher(
             attached.length = 0;
             break;
           }
-          attached.push({ media_fbid: r.id });
+          attached.push({ media_fbid: objectId(r.id) });
         }
         if (attached.length) {
           const body = {
@@ -149,10 +166,12 @@ export function facebookPublisher(
         );
         if (!start.video_id)
           throw new AppError(502, "EXTERNAL_OUTCOME_UNKNOWN");
+        objectId(start.video_id);
         const u = new URL(start.upload_url);
         if (
           u.protocol !== "https:" ||
           u.hostname !== "rupload.facebook.com" ||
+          u.port ||
           u.username ||
           u.password
         )
@@ -201,6 +220,16 @@ export function facebookPublisher(
           { endpoint: `/${p.pageId}/video_reels`, body },
           () => request(`${p.pageId}/video_reels`, body),
         );
+        const published = await request(`${start.video_id}?fields=status`);
+        if (
+          published.status?.publishing_phase?.status !== "completed" ||
+          published.status?.publishing_phase?.publish_status !== "published"
+        )
+          return {
+            outcome: "needs_action",
+            platformId: start.video_id,
+            reason: "META_REEL_PUBLISHING_PENDING",
+          };
         id = start.video_id;
       } else if (p.format === "video") {
         if (!credentials.userAccessToken)
@@ -221,6 +250,11 @@ export function facebookPublisher(
               credentials.userAccessToken,
             ),
         );
+        if (
+          typeof s.id !== "string" ||
+          !/^upload:[A-Za-z0-9_:=.-]+$/.test(s.id)
+        )
+          throw new AppError(502, "EXTERNAL_OUTCOME_UNKNOWN");
         const h = await step(
           "video:upload",
           { endpoint: `/${s.id}`, media: m, offset: 0 },
@@ -258,6 +292,7 @@ export function facebookPublisher(
         id = r.id;
       } else throw new AppError(400, "UNSUPPORTED_FORMAT");
       if (!id!) throw new AppError(502, "EXTERNAL_OUTCOME_UNKNOWN");
+      objectId(id);
       if (p.firstComment) {
         const body = { message: p.firstComment };
         await step("first_comment", { endpoint: `/${id}/comments`, body }, () =>

@@ -148,6 +148,28 @@ test("owner signup → TOTP → settings → real worker dry-run → logout/logi
     path: ".local/helpa-inbox-desktop.png",
     fullPage: true,
   });
+  await page.getByRole("button", { name: "Reports", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Audience & operations" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("No platform snapshots yet. No history has been invented."),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "7 days", exact: true }).click();
+  await expect(page.locator(".report-kpis")).toContainText("Inquiries");
+  await page.screenshot({
+    path: ".local/helpa-reports-desktop.png",
+    fullPage: true,
+  });
+  await page
+    .getByRole("button", { name: "Evidence & advice", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Refresh insights", exact: true })
+    .click();
+  await expect(
+    page.getByText(/No supported recommendations yet/),
+  ).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Overview", exact: true }).click();
   expect(

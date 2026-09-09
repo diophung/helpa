@@ -205,7 +205,9 @@ export async function tiktokRoutes(
         new URLSearchParams({
           client_key: c.TIKTOK_CLIENT_KEY,
           response_type: "code",
-          scope: "video.publish,video.upload",
+          scope:
+            "video.publish,video.upload" +
+            (c.AUDIENCE_METRICS_ENABLED ? ",video.list,user.info.stats" : ""),
           redirect_uri: c.PUBLIC_URL + "/api/channels/tiktok/callback",
           state,
         }),

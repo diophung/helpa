@@ -72,3 +72,11 @@ TikTok: [Web Login](https://developers.tiktok.com/docs/en/login-kit-web), [token
 - [Better Auth magic links](https://better-auth.com/docs/plugins/magic-link), [phone numbers](https://better-auth.com/docs/plugins/phone-number), and installed 1.7.3 implementation: hashed single-use links, managed `verifyOTP`, passwordless two-factor enrollment.
 - [Twilio Verify start](https://www.twilio.com/docs/verify/api/verification), [check](https://www.twilio.com/docs/verify/api/verification-check), and [service rate limits](https://www.twilio.com/docs/verify/api/service-rate-limits): fixed Verify endpoints, SMS channel, `approved` plus `valid` result.
 - [TikTok token management](https://developers.tiktok.com/doc/oauth-user-access-token-management) and [post status](https://developers.tiktok.com/doc/content-posting-api-reference-get-video-status): rotated refresh credentials and publication-state reconciliation.
+
+## Audience reporting (checked 2026-09-08)
+
+- [Meta Insights reference](https://developers.facebook.com/docs/graph-api/reference/insights/): Page/Post metric names, periods, `read_insights`, Page ANALYZE task and deprecated unique-impression metrics. The reference currently displays v26 examples; Helpa retains its configurable v25 pin and records missing fields explicitly.
+- [Meta Video Insights](https://developers.facebook.com/docs/graph-api/reference/video/video_insights/) and [guide](https://developers.facebook.com/docs/video-api/guides/insights/): video/Reel lifetime view and watch-time metrics, milliseconds and endpoint shape.
+- [TikTok List Videos](https://developers.tiktok.com/doc/tiktok-api-v2-video-list), [Video Object](https://developers.tiktok.com/docs/en/tiktok-api-v2-video-object) and [User Info](https://developers.tiktok.com/docs/en/tiktok-api-v2-get-user-info): public-video pagination, string IDs, observed counters and relevant Display API scopes.
+- [Twilio Messages](https://www.twilio.com/docs/messaging/api/message-resource): opt-in digest SMS uses Programmable Messaging; API acceptance does not establish handset delivery.
+- [Claude schema limitations](https://platform.claude.com/docs/en/build-with-claude/structured-outputs): unsupported numeric/string/array constraints are conveyed as descriptions in the wire schema and enforced against the original Zod schema after the call.

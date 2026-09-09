@@ -1,3 +1,4 @@
+import { Reports, Analyst } from "./features/reports.js";
 import { Team, Passwordless, Sessions } from "./features/team.js";
 import { can } from "../shared/permissions.js";
 import React, { useEffect, useState, type FormEvent } from "react";
@@ -33,6 +34,7 @@ import {
   Publisher,
   MediaLibrary,
   ChannelControls,
+  useWords,
 } from "./features/publisher.js";
 import { Inbox } from "./features/inbox.js";
 import { Knowledge, Rules } from "./features/knowledge.js";
@@ -231,6 +233,8 @@ function App() {
     );
   const nav = [
     ["overview", LayoutDashboard],
+    ["reports", Activity],
+    ["analyst", Sparkles],
     ["publisher", CalendarDays],
     ["media", Fish],
     ["inbox", Mail],
@@ -353,6 +357,10 @@ function App() {
               channels={channels}
               navigate={navigate}
             />
+          ) : page === "reports" ? (
+            <Reports channels={channels} />
+          ) : page === "analyst" ? (
+            <Analyst actor={actor} navigate={navigate} />
           ) : page === "publisher" ? (
             <Publisher actor={actor} channels={channels} />
           ) : page === "media" ? (
@@ -910,7 +918,11 @@ function Channels({
               <Pill tone={ch.status === "connected" ? "green" : "neutral"}>
                 {t(
                   ch.status === "connected"
-                    ? "dryRun"
+                    ? ch.mode === "live"
+                      ? "live"
+                      : ch.mode === "manual"
+                        ? "manual"
+                        : "dryRun"
                     : ch.status === "disconnected"
                       ? "disconnected"
                       : "manual",
@@ -1095,6 +1107,7 @@ function Audit({ actor }: { actor: Actor }) {
 }
 function System({ actor }: { actor: Actor }) {
   const { t } = useTranslation();
+  const w = useWords();
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState("");
   const [queued, setQueued] = useState(false);
@@ -1206,7 +1219,11 @@ function System({ actor }: { actor: Actor }) {
           data.operations.map((op: any) => (
             <article className="operation" key={op.id}>
               <div>
-                <Pill tone="green">{t("wouldHaveSent")}</Pill>
+                <Pill tone="green">
+                  {op.outcome === "would_have_sent"
+                    ? t("wouldHaveSent")
+                    : op.outcome}
+                </Pill>
                 <small>{formatTime(op.created_at, actor)}</small>
               </div>
               <pre>{JSON.stringify(op.payload, null, 2)}</pre>
@@ -1232,6 +1249,53 @@ function System({ actor }: { actor: Actor }) {
           />
         ))}
       </div>
+      {actor.role === "owner" && (
+        <div className="report-grid">
+          <section className="card section">
+            <h2>{w("Model usage · USD", "Chi phí mô hình · USD")}</h2>
+            <p>
+              {w(
+                "Reservations enforce the cap, including uncertain calls. Charged usage is reported separately.",
+                "Khoản dự trù giới hạn ngân sách, kể cả yêu cầu chưa rõ kết quả. Chi phí thực tế được báo cáo riêng.",
+              )}
+            </p>
+            {!data?.llm?.length && (
+              <p>
+                {w("No model calls recorded", "Chưa ghi nhận yêu cầu mô hình")}
+              </p>
+            )}
+            {data?.llm?.map((r: any) => (
+              <p key={r.budget_month}>
+                {r.budget_month} · {r.calls} {w("calls", "yêu cầu")} ·{" "}
+                {w("Reserved", "Dự trù")} $
+                {(Number(r.reserved_microusd) / 1e6).toFixed(4)} ·{" "}
+                {w("Charged", "Thực tế")} $
+                {(Number(r.charged_microusd) / 1e6).toFixed(4)}
+              </p>
+            ))}
+          </section>
+          <section className="card section">
+            <h2>{w("Delivery & ingestion", "Gửi thông báo & nhận dữ liệu")}</h2>
+            <p>
+              {w("Failed webhook events", "Sự kiện webhook lỗi")}:{" "}
+              {data?.webhooks?.failures ?? "—"}
+            </p>
+            {data?.webhooks?.channels?.map((r: any) => (
+              <p key={r.id}>
+                {r.display_name}:{" "}
+                {r.last_event
+                  ? formatTime(r.last_event, actor)
+                  : w("No event yet", "Chưa có sự kiện")}
+              </p>
+            ))}
+            {data?.notifications?.map((r: any) => (
+              <p key={r.transport + r.status}>
+                {r.transport} · {r.status}: {r.count}
+              </p>
+            ))}
+          </section>
+        </div>
+      )}
     </>
   );
 }

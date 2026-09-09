@@ -73,7 +73,7 @@ export async function reserveCall(
       throw new AppError(409, "LLM_BUDGET_EXHAUSTED");
     const id = randomUUID();
     await db.query(
-      "INSERT INTO llm_call(id,business_id,channel_id,operation,model,provider,budget_month,reserved_microusd,status,request_encrypted,prompt_version) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'reserved',$9,'helpa-understand-v1')",
+      "INSERT INTO llm_call(id,business_id,channel_id,operation,model,provider,budget_month,reserved_microusd,status,request_encrypted,prompt_version) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'reserved',$9,$10)",
       [
         id,
         businessId,
@@ -84,6 +84,7 @@ export async function reserveCall(
         month,
         amount,
         encrypt(request, `${businessId}:llm:${id}:request`, c),
+        `helpa-${operation}-v1`,
       ],
     );
     return {
@@ -95,6 +96,52 @@ export async function reserveCall(
       reserved: amount,
     };
   });
+}
+// Use the common supported schema subset; local Zod validation retains every constraint.
+export function providerSchema(node: any): any {
+  if (!node || typeof node !== "object") return node;
+  const result: any = {};
+  const constraints: string[] = [];
+  for (const [k, v] of Object.entries(node)) {
+    if (
+      [
+        "$schema",
+        "minimum",
+        "maximum",
+        "exclusiveMinimum",
+        "exclusiveMaximum",
+        "multipleOf",
+        "minLength",
+        "maxLength",
+        "maxItems",
+        "uniqueItems",
+      ].includes(k) ||
+      (k === "minItems" && Number(v) > 1)
+    ) {
+      if (k !== "$schema") constraints.push(k + "=" + JSON.stringify(v));
+      continue;
+    }
+    if (["properties", "$defs", "definitions"].includes(k))
+      result[k] = Object.fromEntries(
+        Object.entries(v as object).map(([name, child]) => [
+          name,
+          providerSchema(child),
+        ]),
+      );
+    else if (
+      ["items", "additionalProperties"].includes(k) &&
+      typeof v === "object"
+    )
+      result[k] = providerSchema(v);
+    else if (["anyOf", "allOf", "oneOf"].includes(k))
+      result[k] = (v as any[]).map(providerSchema);
+    else result[k] = v;
+  }
+  if (constraints.length)
+    result.description = [result.description, ...constraints]
+      .filter(Boolean)
+      .join("; ");
+  return result;
 }
 export async function structuredCall<T>(
   pool: PgPool,
@@ -110,8 +157,15 @@ export async function structuredCall<T>(
   if (Buffer.byteLength(input) > 16000)
     throw new AppError(400, "LLM_INPUT_TOO_LARGE");
   const jsonSchema = z.toJSONSchema(schema);
+  const wireSchema = providerSchema(jsonSchema);
   const outputBound = 2048;
-  const record = { system, input, schema: jsonSchema };
+  const record = {
+    system,
+    input,
+    schema: jsonSchema,
+    wireSchema,
+    maxOutputTokens: outputBound,
+  };
   const call = await reserveCall(
     pool,
     c,
@@ -135,7 +189,7 @@ export async function structuredCall<T>(
             type: "json_schema",
             name: "helpa_result",
             strict: true,
-            schema: jsonSchema,
+            schema: wireSchema,
           },
         },
       }
@@ -144,7 +198,7 @@ export async function structuredCall<T>(
         max_tokens: outputBound,
         system,
         messages: [{ role: "user", content: input }],
-        output_config: { format: { type: "json_schema", schema: jsonSchema } },
+        output_config: { format: { type: "json_schema", schema: wireSchema } },
       };
   try {
     const r = await fetcher(

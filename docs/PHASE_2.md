@@ -31,3 +31,7 @@ System exposes scoped last inbound-message timestamps, knowledge sync state, own
 The Playwright flow covers owner TOTP, real worker dry-run publishing, built-in knowledge creation, manual inquiry processing, facts review and approved dry-run reply. No live Meta, TikTok, SMTP, Google or LLM account call has been used as acceptance evidence. Real Sheets, webhook traffic, email delivery and a full day of dry-run traffic remain release prerequisites.
 
 Team routing and token maintenance are documented in [Phase 3](PHASE_3.md). Reporting and analyst proposals follow. Coverage remains 24/7/365 with owner fallback.
+
+Additional hardening covers English/mixed-language policy fixtures, blank/boolean monetary input, contradictory stock quantity/status, and future per-field timestamps. Products may provide stock quantity without status; zero maps to out, positive maps to in_stock. Explicit contradictory values are rejected. In-app approval notifications are visible in Inbox; complaints remain email-only.
+
+For an explicitly authorized paid evaluation on the development checkout, configure your provider key and saved positive cap, then run `npx tsx src/server/eval/run.ts --live-evaluation`. It uses the same budget gateway, stops on provider/budget failure, and writes private `.local/live-evaluation.json` with exact intent-set accuracy, per-intent precision/recall and call IDs. Partial completion is reported explicitly. These generated examples still require Dio's signoff; no real-model evaluation has been run in this delivery.

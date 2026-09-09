@@ -20,6 +20,10 @@ const schema = z.object({
   ANTHROPIC_API_KEY: z.string().default(""),
   GOOGLE_SERVICE_ACCOUNT_FILE: z.string().default(""),
   KNOWLEDGE_POLL_MINUTES: z.coerce.number().int().min(1).max(1440).default(10),
+  AUDIENCE_METRICS_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
   AUTH_DELIVERY_MODE: z
     .enum(["disabled", "console", "live"])
     .default("disabled"),
@@ -28,6 +32,7 @@ const schema = z.object({
     .string()
     .regex(/^$|^AC[0-9a-fA-F]{32}$/)
     .default(""),
+  TWILIO_MESSAGE_FROM: z.string().default(""),
   TWILIO_AUTH_TOKEN: z.string().default(""),
   TWILIO_VERIFY_SERVICE_SID: z
     .string()

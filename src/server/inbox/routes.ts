@@ -10,7 +10,7 @@ import { audit } from "../audit/index.js";
 import { ingestMessage } from "./service.js";
 import { loadRules } from "../rules/service.js";
 import { normalize } from "./engine.js";
-import { verifyMeta, normalizeMeta } from "../channels/facebook-messaging.js";
+import { channelAdapter } from "../channels/adapter.js";
 export async function inboxRoutes(
   app: FastifyInstance,
   pool: PgPool,
@@ -325,11 +325,9 @@ export async function inboxRoutes(
         const raw = req.body as Buffer;
         if (
           !Buffer.isBuffer(raw) ||
-          !verifyMeta(
-            raw,
-            req.headers["x-hub-signature-256"] as string,
-            c.META_APP_SECRET,
-          )
+          !channelAdapter("facebook", { config: c }).verifyWebhook(raw, {
+            "x-hub-signature-256": req.headers["x-hub-signature-256"] as string,
+          })
         )
           throw new AppError(403, "WEBHOOK_SIGNATURE_INVALID");
         let payload;
@@ -365,7 +363,9 @@ export async function processWebhooks(pool: PgPool) {
           [e.id],
         );
         if (!current.rowCount) return;
-        for (const m of normalizeMeta(e.payload)) {
+        for (const m of await channelAdapter("facebook").fetchInbox(
+          e.payload,
+        )) {
           const ch = (
             await db.query(
               "SELECT * FROM channel WHERE platform='facebook' AND external_id=$1 AND status='connected'",

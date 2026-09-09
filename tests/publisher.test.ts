@@ -335,3 +335,103 @@ it("uses documented text and first-comment requests with separate steps (synthet
   expect(calls[0][1].message).toBe("Hàng mới về\n#haisan");
   expect(r.permalink).toBe("https://www.facebook.com/123_456");
 });
+
+it("keeps resumable upload IDs on Meta's host and waits for Reel publication confirmation", async () => {
+  const requests: string[] = [];
+  const fetcher = vi.fn(async (url: any, init: any) => {
+    requests.push(String(url));
+    if (init.body?.pipe) {
+      for await (const _chunk of init.body) {
+        /* Consume the local fixture stream. */
+      }
+    }
+    return new Response(
+      JSON.stringify(
+        String(url).includes("/upload:")
+          ? { h: "fixture-handle" }
+          : { id: "123_789" },
+      ),
+    );
+  }) as any;
+  const step = async (
+    name: string,
+    _payload: unknown,
+    send: () => Promise<any>,
+  ) => (name === "video:start" ? { id: "upload:fixture_123=" } : send());
+  const p: any = {
+    ...variant("video"),
+    platform: "facebook",
+    pageId: "123",
+    media: [{ id: assetId, bytes: 123, mime: "video/mp4" }],
+  };
+  await facebookPublisher(
+    c,
+    { accessToken: "fixture", userAccessToken: "fixture-user" },
+    step,
+    async () => "config/rules.example.yaml",
+    fetcher,
+  ).publish(p);
+  expect(new URL(requests[0]).hostname).toBe("graph.facebook.com");
+  expect(new URL(requests[0]).pathname).toBe("/v25.0/upload:fixture_123=");
+  expect(new URL(requests[1]).hostname).toBe("graph-video.facebook.com");
+  const reelStep = async (
+    name: string,
+    _payload: unknown,
+    _send: () => Promise<any>,
+  ) =>
+    name === "reel:start"
+      ? {
+          video_id: "1234",
+          upload_url: "https://rupload.facebook.com/video-upload/1234",
+        }
+      : { success: true };
+  const status = vi.fn(
+    async () =>
+      new Response(
+        JSON.stringify({
+          status: {
+            processing_phase: { status: "completed" },
+            publishing_phase: {
+              status: "in_progress",
+              publish_status: "draft",
+            },
+          },
+        }),
+      ),
+  ) as any;
+  const r = await facebookPublisher(
+    c,
+    { accessToken: "fixture" },
+    reelStep as any,
+    async () => "",
+    status,
+  ).publish({ ...p, format: "reel" });
+  expect(r).toMatchObject({
+    outcome: "needs_action",
+    platformId: "1234",
+    reason: "META_REEL_PUBLISHING_PENDING",
+  });
+  expect(status).toHaveBeenCalledTimes(2);
+});
+it("rejects untrusted upstream object IDs before first-comment dispatch", async () => {
+  const fetcher = vi.fn(
+    async () =>
+      new Response(JSON.stringify({ id: "https://untrusted.invalid/token" })),
+  ) as any;
+  await expect(
+    facebookPublisher(
+      c,
+      { accessToken: "fixture" },
+      async (_n, _p, send) => send(),
+      async () => "",
+      fetcher,
+    ).publish({
+      ...variant(),
+      platform: "facebook",
+      pageId: "123",
+      media: [],
+      firstComment: "Hello",
+    } as any),
+  ).rejects.toThrow("EXTERNAL_OUTCOME_UNKNOWN");
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});

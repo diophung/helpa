@@ -13,10 +13,22 @@ export async function deliverEmails(
   }) => Promise<unknown>,
 ) {
   const rows = await pool.query(
-    "SELECT n.*,u.email,m.revoked_at FROM notification n JOIN \"user\" u ON u.id=n.user_id JOIN membership m ON m.user_id=n.user_id AND m.business_id=n.business_id WHERE n.transport='email' AND n.status='pending' ORDER BY n.created_at LIMIT 20",
+    "SELECT n.*,u.email,m.revoked_at,m.channel_scope,c.platform,p.digest_email FROM notification n JOIN \"user\" u ON u.id=n.user_id JOIN membership m ON m.user_id=n.user_id AND m.business_id=n.business_id LEFT JOIN channel c ON c.id=n.channel_id LEFT JOIN user_preference p ON p.user_id=n.user_id WHERE n.transport='email' AND n.status='pending' ORDER BY n.created_at LIMIT 20",
   );
   for (const n of rows.rows) {
-    if (n.revoked_at) {
+    if (
+      n.revoked_at ||
+      (n.channel_id &&
+        !n.channel_scope.includes("*") &&
+        !n.channel_scope.includes(n.platform)) ||
+      (n.kind === "weekly_digest" &&
+        (!n.digest_email ||
+          !n.scope_snapshot ||
+          (!n.channel_scope.includes("*") &&
+            n.scope_snapshot.some(
+              (p: string) => !n.channel_scope.includes(p),
+            ))))
+    ) {
       await pool.query(
         "UPDATE notification SET status='recipient_revoked' WHERE id=$1",
         [n.id],

@@ -1,3 +1,6 @@
+import { collectMetrics } from "./metrics/service.js";
+import { weeklyDigest } from "./notifications/digest.js";
+import { deliverSms } from "./notifications/sms.js";
 import { maintainChannels, reconcileTikTok } from "./channels/maintenance.js";
 import { pollSources } from "./knowledge/google.js";
 import { deliverEmails } from "./notifications/service.js";
@@ -139,6 +142,9 @@ const sourceTimer = setInterval(() => {
     await pollSources(pool, c);
     await maintainChannels(pool, c);
     await reconcileTikTok(pool, c);
+    await collectMetrics(pool, c);
+    await weeklyDigest(pool, c);
+    await deliverSms(pool, c);
   })()
     .catch(() => console.error('{"event":"source_poll_failed"}'))
     .finally(() => {

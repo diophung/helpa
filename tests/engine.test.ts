@@ -16,6 +16,7 @@ import {
 } from "../src/server/llm/gateway.js";
 import { messageWindowOpen } from "../src/server/inbox/service.js";
 import golden from "./fixtures/inquiries.vi.json" with { type: "json" };
+import multilingual from "./fixtures/inquiries.multilingual.json" with { type: "json" };
 const rules = rulesSchema.parse(
   parse(readFileSync("config/rules.example.yaml", "utf8")),
 );
@@ -83,16 +84,19 @@ function analysis(
     },
   };
 }
-it.each(golden)("golden policy fixture $id: $text", (g) => {
-  const a = analysisSchema.parse(g.analysis);
-  const r = runEngine(g.text, a, records, rules, defaultVoice, now);
-  expect(r.autonomy).toBe(g.outcome);
-  expect(r.analysis.intents).toEqual(expect.arrayContaining(g.intents));
-  if (r.autonomy === "auto_send") {
-    expect(r.checks.passed).toBe(true);
-    expect(r.text).not.toMatch(/undefined|NaN/);
-  } else if (r.autonomy !== "none") expect(r.text).toBe(r.holdingText);
-});
+it.each([...golden, ...multilingual])(
+  "golden policy fixture $id: $text",
+  (g) => {
+    const a = analysisSchema.parse(g.analysis);
+    const r = runEngine(g.text, a, records, rules, defaultVoice, now);
+    expect(r.autonomy).toBe(g.outcome);
+    expect(r.analysis.intents).toEqual(expect.arrayContaining(g.intents));
+    if (r.autonomy === "auto_send") {
+      expect(r.checks.passed).toBe(true);
+      expect(r.text).not.toMatch(/undefined|NaN/);
+    } else if (r.autonomy !== "none") expect(r.text).toBe(r.holdingText);
+  },
+);
 it("uses exact source versions and rejects even a one-digit price mutation", () => {
   const r = runEngine(
     "Giá tôm sú size 20?",
@@ -212,4 +216,40 @@ it("uses the customer timestamp and a strict 24-hour boundary", () => {
     false,
   );
   expect(budgetMonth(new Date("2026-08-31T17:00:00Z"))).toBe("2026-09");
+});
+
+import { providerSchema } from "../src/server/llm/gateway.js";
+import { z } from "zod";
+it("simplifies unsupported provider schema constraints while retaining local validation", () => {
+  const wire = providerSchema(z.toJSONSchema(analysisSchema));
+  expect(wire.properties.confidence.maximum).toBeUndefined();
+  expect(wire.properties.confidence.description).toContain("maximum=1");
+  expect(wire.properties.entities.properties.products.maxItems).toBeUndefined();
+  expect(wire.properties.entities.additionalProperties).toBe(false);
+  expect(
+    analysisSchema.safeParse({ ...analysis(["pricing"]), confidence: 1.2 })
+      .success,
+  ).toBe(false);
+});
+
+import { mapRows } from "../src/server/knowledge/schema.js";
+it("rejects blank or contradictory facts and derives stock only from explicit quantity", () => {
+  const product = { ...records[0].data, updated_at: now.toISOString() };
+  expect(mapRows("products", [{ ...product, price: " " }]).errors).toHaveLength(
+    1,
+  );
+  expect(
+    mapRows("products", [{ ...product, price: false }]).errors,
+  ).toHaveLength(1);
+  expect(
+    mapRows("products", [{ ...product, stock_qty: 0 }]).errors,
+  ).toHaveLength(1);
+  const { stock_status, ...quantityOnly } = product;
+  expect(mapRows("products", [quantityOnly]).rows[0].stock_status).toBe(
+    "in_stock",
+  );
+  expect(
+    mapRows("products", [{ ...quantityOnly, stock_qty: 0 }]).rows[0]
+      .stock_status,
+  ).toBe("out");
 });

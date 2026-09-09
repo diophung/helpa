@@ -5,6 +5,7 @@ dist
 .env.*
 !.env.example
 .local
+media
 backups
 test-results
 playwright-report

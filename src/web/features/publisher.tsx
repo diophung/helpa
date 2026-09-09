@@ -133,6 +133,33 @@ export function Publisher({
         }
       : {}),
   });
+  useEffect(() => {
+    try {
+      const suggestion = JSON.parse(
+        sessionStorage.getItem("helpa-insight") ?? "null",
+      );
+      if (suggestion?.detector === "posting_hours" && write) {
+        const ch = channels.find((c) => c.id === suggestion.channel_id);
+        if (!ch) return;
+        const tomorrow = new Date(Date.now() + 86400000 + 7 * 3600000)
+          .toISOString()
+          .slice(0, 10);
+        const scheduledAt = businessInstant(
+          tomorrow +
+            "T" +
+            String(suggestion.evidence.windowStart).padStart(2, "0") +
+            ":00",
+        );
+        newPost({
+          title: w("Test suggested posting window", "Thử khung giờ được gợi ý"),
+          channel_id: ch.id,
+          payload: { ...fresh(ch), scheduledAt },
+          suggestedAt: scheduledAt,
+        });
+        sessionStorage.removeItem("helpa-insight");
+      }
+    } catch {}
+  }, []);
   function newPost(p?: any, edit = false) {
     setError("");
     setEditing(edit ? p : { id: null });
@@ -155,7 +182,7 @@ export function Publisher({
                   ].includes(k),
                 ),
               ),
-              scheduledAt: edit ? p.scheduled_at : null,
+              scheduledAt: edit ? p.scheduled_at : (p.suggestedAt ?? null),
             },
           ]
         : [fresh()],
@@ -708,6 +735,25 @@ export function Publisher({
                 </a>
               ))}
             </div>
+            {write && detail.status === "needs_action" && (
+              <button
+                onClick={() =>
+                  void api("/posts/" + detail.id + "/resume", "POST", {
+                    revision: detail.revision,
+                  })
+                    .then(() => {
+                      setDetail(null);
+                      return load();
+                    })
+                    .catch((e) => setError(e.message))
+                }
+              >
+                {w(
+                  "Resume confirmed steps / check processing",
+                  "Tiếp tục bước đã xác nhận / kiểm tra xử lý",
+                )}
+              </button>
+            )}
             {write && detail.status === "needs_action" && (
               <form
                 onSubmit={(e) => {

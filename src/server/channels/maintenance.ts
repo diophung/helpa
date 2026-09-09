@@ -1,8 +1,9 @@
+import { channelAdapter } from "./adapter.js";
 import { randomUUID } from "node:crypto";
 import { transaction, type PgPool } from "../db/index.js";
 import type { Config } from "../config.js";
 import { decrypt, encrypt } from "./crypto.js";
-import { tiktokToken, tiktokCall } from "./tiktok.js";
+import { tiktokCall } from "./tiktok.js";
 import { audit } from "../audit/index.js";
 import { AppError } from "../errors.js";
 export async function maintainChannels(
@@ -35,64 +36,14 @@ export async function maintainChannels(
         `${ch.business_id}:channel:${ch.id}`,
         c,
       );
-      let next = creds,
-        expires = ch.token_expires_at,
-        expiryKind = ch.token_expiry_kind,
-        scopes = ch.granted_scopes;
-      if (ch.platform === "tiktok") {
-        if (!c.TIKTOK_CLIENT_KEY || !c.TIKTOK_CLIENT_SECRET) continue;
-        if (expires && Date.parse(expires) < Date.now() + 12 * 3600000) {
-          if (
-            !creds.refreshToken ||
-            Date.parse(creds.refreshExpiresAt) <= Date.now()
-          )
-            throw new AppError(409, "TIKTOK_RECONNECT_REQUIRED");
-          const token = await tiktokToken(
-            c,
-            { grant_type: "refresh_token", refresh_token: creds.refreshToken },
-            fetcher,
-          );
-          if (token.open_id !== ch.external_id)
-            throw new AppError(409, "TIKTOK_ACCOUNT_MISMATCH");
-          next = {
-            ...creds,
-            accessToken: token.access_token,
-            refreshToken: token.refresh_token,
-            refreshExpiresAt: new Date(
-              Date.now() + token.refresh_expires_in * 1000,
-            ).toISOString(),
-          };
-          expires = new Date(Date.now() + token.expires_in * 1000);
-          scopes = token.scope.split(",");
-          expiryKind = "known";
-        }
-      } else if (ch.platform === "facebook") {
-        if (!c.META_APP_ID || !c.META_APP_SECRET) continue;
-        const url = new URL(
-          `https://graph.facebook.com/${c.META_GRAPH_VERSION}/debug_token`,
-        );
-        url.searchParams.set("input_token", creds.accessToken);
-        const r = await fetcher(url, {
-          headers: {
-            Authorization: `Bearer ${c.META_APP_ID}|${c.META_APP_SECRET}`,
-          },
-          redirect: "error",
-          signal: AbortSignal.timeout(15000),
-        });
-        const result: any = await r.json();
-        if (!r.ok) throw new AppError(502, "META_TOKEN_CHECK_FAILED");
-        const d = result.data;
-        if (!d?.is_valid || String(d.app_id) !== c.META_APP_ID)
-          throw new AppError(409, "META_RECONNECT_REQUIRED");
-        scopes = d.scopes ?? [];
-        expires = d.expires_at ? new Date(d.expires_at * 1000) : null;
-        expiryKind =
-          d.expires_at === 0
-            ? "no_scheduled_expiry"
-            : d.expires_at
-              ? "known"
-              : "unknown";
-      }
+      const refreshed = await channelAdapter(ch.platform, {
+        config: c,
+        channel: ch,
+        credentials: creds,
+        fetcher,
+      }).refreshCredentials();
+      if (!refreshed) continue;
+      const { next, expires, expiryKind, scopes } = refreshed;
       await transaction(pool, async (db) => {
         const changed = await db.query(
           "UPDATE channel SET credentials_encrypted=$2,token_expires_at=$3,token_expiry_kind=$4,granted_scopes=$5,token_checked_at=now(),maintenance_error=NULL WHERE id=$1 AND status='connected' AND credentials_encrypted=$6 RETURNING id",

@@ -12,11 +12,10 @@ import {
 import { effectiveMode } from "../channels/dispatch.js";
 import { decrypt } from "../channels/crypto.js";
 import {
-  facebookPublisher,
   type Step,
   type PublishingTransport,
 } from "../channels/facebook-publisher.js";
-import { tiktokPublisher } from "../channels/tiktok.js";
+import { channelAdapter } from "../channels/adapter.js";
 import { mediaPath } from "../media/service.js";
 export async function dispatchVariant(
   pool: PgPool,
@@ -179,7 +178,8 @@ export async function dispatchVariant(
       return;
     }
     if (mode === "manual") {
-      await terminal("needs_action", "MANUAL_PUBLICATION_REQUIRED");
+      const result = await channelAdapter("manual").publish(p);
+      await terminal(result.outcome, result.reason ?? null);
       return;
     }
     if (
@@ -263,42 +263,31 @@ export async function dispatchVariant(
     try {
       const transport = factory
         ? factory(step)
-        : v.platform === "tiktok"
-          ? tiktokPublisher(
+        : channelAdapter(v.platform, {
+            config: c,
+            credentials: decrypt(
+              v.credentials_encrypted,
+              `${v.business_id}:channel:${v.channel_id}`,
               c,
-              (
-                decrypt(
-                  v.credentials_encrypted,
-                  `${v.business_id}:channel:${v.channel_id}`,
-                  c,
-                ) as any
-              ).accessToken,
-              step,
-            )
-          : facebookPublisher(
-              c,
-              decrypt(
-                v.credentials_encrypted,
-                `${v.business_id}:channel:${v.channel_id}`,
-                c,
-              ) as any,
-              step,
-              async (m) => {
-                const asset = (
-                  await pool.query(
-                    "SELECT storage_key FROM media_asset WHERE business_id=$1 AND id=$2",
-                    [v.business_id, m.id],
-                  )
-                ).rows[0];
-                if (!asset) throw new AppError(409, "MEDIA_MISSING");
-                const path = mediaPath(c, asset.storage_key);
-                const h = createHash("sha256");
-                for await (const b of createReadStream(path)) h.update(b);
-                if (h.digest("hex") !== m.sha256)
-                  throw new AppError(409, "MEDIA_HASH_MISMATCH");
-                return path;
-              },
-            );
+            ),
+            channel: v,
+            step,
+            file: async (m) => {
+              const asset = (
+                await pool.query(
+                  "SELECT storage_key FROM media_asset WHERE business_id=$1 AND id=$2",
+                  [v.business_id, m.id],
+                )
+              ).rows[0];
+              if (!asset) throw new AppError(409, "MEDIA_MISSING");
+              const path = mediaPath(c, asset.storage_key);
+              const h = createHash("sha256");
+              for await (const b of createReadStream(path)) h.update(b);
+              if (h.digest("hex") !== m.sha256)
+                throw new AppError(409, "MEDIA_HASH_MISMATCH");
+              return path;
+            },
+          });
       const result = await transport.publish(p);
       await terminal(
         result.outcome,

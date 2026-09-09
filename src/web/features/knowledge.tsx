@@ -47,6 +47,8 @@ const fields: Record<string, string[]> = {
     "items",
     "kg",
     "total",
+    "currency",
+    "lines",
     "status",
     "updated_at",
   ],
@@ -304,7 +306,9 @@ export function Knowledge() {
                           <input
                             value={
                               Array.isArray(row[f])
-                                ? (row[f] as string[]).join(";")
+                                ? f === "lines"
+                                  ? JSON.stringify(row[f])
+                                  : (row[f] as string[]).join(";")
                                 : String(row[f] ?? "")
                             }
                             placeholder={

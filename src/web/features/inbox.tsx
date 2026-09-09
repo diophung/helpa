@@ -18,6 +18,7 @@ export function Inbox({ actor, channels }: { actor: Actor; channels: any[] }) {
     undefined,
     actor.deniedPermissions,
   );
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState<any>(null);
@@ -28,10 +29,13 @@ export function Inbox({ actor, channels }: { actor: Actor; channels: any[] }) {
   const [customer, setCustomer] = useState("");
   const [text, setText] = useState("");
   const [edits, setEdits] = useState<Record<string, string>>({});
+  const [orderId, setOrderId] = useState("");
+  const [linked, setLinked] = useState(false);
   const [followup, setFollowup] = useState("");
   async function load() {
     try {
       setItems((await api("/inbox?filter=" + filter)).conversations);
+      setNotifications((await api("/notifications")).notifications);
       if (selected) setDetail(await api("/inbox/" + selected));
     } catch (e) {
       setError((e as Error).message);
@@ -80,6 +84,21 @@ export function Inbox({ actor, channels }: { actor: Actor; channels: any[] }) {
         )}
       </div>
       <Failure error={error} />
+      {notifications.length > 0 && (
+        <details className="panel section">
+          <summary>
+            {w("Your notifications", "Thông báo của bạn")} ·{" "}
+            {notifications.length}
+          </summary>
+          {notifications.map((n) => (
+            <article className="operation" key={n.id}>
+              <strong>{n.subject}</strong>
+              <p>{n.body}</p>
+              <small>{new Date(n.created_at).toLocaleString()}</small>
+            </article>
+          ))}
+        </details>
+      )}
       <div className="button-row inbox-filters">
         {[
           ["all", "All", "Tất cả"],
@@ -145,36 +164,82 @@ export function Inbox({ actor, channels }: { actor: Actor; channels: any[] }) {
                       : detail.conversation.mode}
                   </span>
                 </div>
-                <div className="button-row">
-                  <button
-                    onClick={() =>
-                      void api("/inbox/" + selected, "PATCH", {
-                        assignToMe: true,
-                      })
-                        .then(load)
-                        .catch((e) => setError(e.message))
-                    }
-                  >
-                    {w("Assign to me", "Giao cho tôi")}
-                  </button>
-                  <button
-                    onClick={() =>
-                      void api("/inbox/" + selected, "PATCH", {
-                        status:
-                          detail.conversation.status === "resolved"
-                            ? "open"
-                            : "resolved",
-                      })
-                        .then(load)
-                        .catch((e) => setError(e.message))
-                    }
-                  >
-                    {detail.conversation.status === "resolved"
-                      ? w("Reopen", "Mở lại")
-                      : w("Resolve", "Hoàn tất")}
-                  </button>
-                </div>
+                {write && (
+                  <div className="button-row">
+                    <button
+                      onClick={() =>
+                        void api("/inbox/" + selected, "PATCH", {
+                          assignToMe: true,
+                        })
+                          .then(load)
+                          .catch((e) => setError(e.message))
+                      }
+                    >
+                      {w("Assign to me", "Giao cho tôi")}
+                    </button>
+                    <button
+                      onClick={() =>
+                        void api("/inbox/" + selected, "PATCH", {
+                          status:
+                            detail.conversation.status === "resolved"
+                              ? "open"
+                              : "resolved",
+                        })
+                          .then(load)
+                          .catch((e) => setError(e.message))
+                      }
+                    >
+                      {detail.conversation.status === "resolved"
+                        ? w("Reopen", "Mở lại")
+                        : w("Resolve", "Hoàn tất")}
+                    </button>
+                  </div>
+                )}
               </div>
+              {write && (
+                <form
+                  className="order-link"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void api("/inbox/" + selected + "/order", "POST", {
+                      orderId,
+                    })
+                      .then(() => {
+                        setLinked(true);
+                        setOrderId("");
+                      })
+                      .catch((e) => setError(e.message));
+                  }}
+                >
+                  <Field
+                    label={w(
+                      "Confirm an order belongs to this inquiry",
+                      "Xác nhận đơn hàng thuộc câu hỏi này",
+                    )}
+                  >
+                    <input
+                      required
+                      value={orderId}
+                      onChange={(e) => {
+                        setOrderId(e.target.value);
+                        setLinked(false);
+                      }}
+                      placeholder={w("Exact order ID", "Mã đơn chính xác")}
+                    />
+                  </Field>
+                  <button>
+                    {w("Link confirmed order", "Liên kết đơn đã xác nhận")}
+                  </button>
+                  {linked && (
+                    <small>
+                      {w(
+                        "Order linked to its source version.",
+                        "Đã liên kết phiên bản nguồn của đơn.",
+                      )}
+                    </small>
+                  )}
+                </form>
+              )}
               {detail.messages.map((m: any) => (
                 <article
                   key={m.id}

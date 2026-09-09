@@ -2,7 +2,7 @@
 
 A self-hosted back office for a Vietnamese seafood business: connect social accounts, schedule content, answer customers from approved facts, and delegate work without sharing platform passwords.
 
-**Foundation and the first Publisher slice are implemented.** Secure owner setup/MFA, Facebook/TikTok OAuth, encrypted tokens, scoped access, private media/ffmpeg renditions, calendar variants/approvals and a durable dry-run publishing worker are runnable. See [Publisher evidence and limitations](docs/PHASE_1.md). Real-account publication still needs credentials and live acceptance. Inbox, delegation and analytics are the next slices.
+**All five feature slices are runnable locally:** publisher/calendar, grounded inbox and knowledge, delegated team access, reports, and reviewed advice. Outbound actions start in dry-run; model calls have an enforced configurable monthly cap. See the phase guides below for implemented behavior and measured limits. Production activation still needs your credentials, approved data/voice, and real-account acceptance.
 
 ## Run locally with Docker
 
@@ -39,15 +39,17 @@ docker run -d --name helpa-dev-postgres \
   -p 127.0.0.1:54329:5432 postgres:17-alpine
 ```
 
-Tests use local Postgres and synthetic API fixtures; no platform or LLM credentials are needed and no external API is called. Dependency/browser installation is a separate online setup step. The end-to-end test covers signup, TOTP, settings, a real worker diagnostic, audit visibility, mobile layout and re-login. It also uploads synthetic media, creates/approves a Reel and observes the real worker dry-run payload. Install ffmpeg/ffprobe for host testing (the Docker image includes them).
+Tests use local Postgres and synthetic API fixtures; no platform or LLM credentials are needed and no external API is called. Dependency/browser installation is a separate online setup step. The end-to-end test covers signup, TOTP, settings, a real worker diagnostic, audit visibility, mobile layout and re-login. It also uploads synthetic media, creates/approves a Reel, observes the real worker dry-run payload, reviews a grounded inbox draft, loads reporting/advice, and verifies invited phone login and immediate revocation. Install ffmpeg/ffprobe for host testing (the Docker image includes them).
 
 ## Decisions and documentation
 
-- OpenAI or Anthropic via API keys; selectable provider/model and monthly USD cap. **Cap 0 disables paid calls.** Phase 0 stores configuration only; the enforced execution gateway arrives in Phase 2.
-- Twilio chosen for Phase 3 OTP; 24/7/365 coverage; complaints notify by email only.
+- OpenAI or Anthropic via API keys; selectable provider/model and monthly USD cap. **Cap 0 disables paid calls.** A shared, encrypted request ledger reserves spend before each model call.
+- Twilio Verify for phone login and Programmable Messaging for optional weekly digests; 24/7/365 coverage; complaints notify by email only.
 - Data/voice examples will arrive as Markdown; [input instructions](docs/inputs/README.md).
-- [Plan](docs/PLAN.md) · [Architecture](docs/ARCHITECTURE.md) · [ADRs](docs/adr/README.md) · [API evidence](docs/API_NOTES.md) · [Runbook](docs/RUNBOOK.md) · [Delivery status](docs/PHASE_0.md).
+- [Plan](docs/PLAN.md) · [Architecture](docs/ARCHITECTURE.md) · [ADRs](docs/adr/README.md) · [API evidence](docs/API_NOTES.md) · [Runbook](docs/RUNBOOK.md) · [Current delivery status](docs/PLAN.md).
 
 Front Desk: [knowledge, inbox, rules, providers and validation](docs/PHASE_2.md).
 
 Team access: [email/SMS invitations, TOTP, duty schedule and token maintenance](docs/PHASE_3.md).
+
+Reports and advice: [source metrics, operations, weekly digests and reviewed proposals](docs/PHASE_4_5.md).

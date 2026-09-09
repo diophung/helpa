@@ -1,3 +1,5 @@
+import { metricsRoutes } from "./metrics/routes.js";
+import { advisorRoutes } from "./advisor/routes.js";
 import { auditRoutes } from "./audit/routes.js";
 import { teamRoutes } from "./team/routes.js";
 import type { SmsProvider } from "./team/access.js";
@@ -688,6 +690,8 @@ export async function buildApp(
   await tiktokRoutes(app, pool, auth, c);
   await knowledgeRoutes(app, pool, auth, c);
   await teamRoutes(app, pool, auth, c, { forwardAuth, sessionHeaders });
+  await metricsRoutes(app, pool, auth, c);
+  await advisorRoutes(app, pool, auth, c);
   await inboxRoutes(app, pool, auth, c);
   if (
     options.serveWeb !== false &&

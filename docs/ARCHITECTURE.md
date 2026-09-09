@@ -1,12 +1,12 @@
 # Helpa architecture
 
-Status: accepted design with Phase 0 implemented, 2026-09-08. Future modules below remain a design; see PHASE_0.md for implemented scope. See [ADRs](adr/README.md) and [open decisions](OPEN_QUESTIONS.md).
+Status: accepted design with local Phases 0–5 implemented, 2026-09-08. See the phase delivery guides for exact implementation and remaining live-account acceptance. See [ADRs](adr/README.md) and [open decisions](OPEN_QUESTIONS.md).
 
 ## Stack and deployment
 
-Use TypeScript throughout: React/Vite UI served by a Fastify Node.js web process, a separate Node.js worker built from the same repository, Postgres, pg-boss, and Caddy. Reviewed SQL migrations and native pg repositories implement the foundation; typed ORM adoption is deferred until it adds value to the feature modules; Zod validates external and internal boundaries. Better Auth supplies identity primitives with Helpa-owned authorization and mandatory MFA enforcement. Use maintained XLSX parsing (proposed ExcelJS), a direct ffmpeg/ffprobe subprocess wrapper, i18next, Vitest, and Playwright. Validate/pin supported versions, licenses, and security posture in Phase 0; these are library choices, not claims about compatibility already tested.
+Use TypeScript throughout: React/Vite UI served by a Fastify Node.js web process, a separate Node.js worker built from the same repository, Postgres, pg-boss, and Caddy. Reviewed SQL migrations and native pg repositories implement the foundation; typed ORM adoption is deferred until it adds value to the feature modules; Zod validates external and internal boundaries. Better Auth supplies identity primitives with Helpa-owned authorization and mandatory MFA enforcement. Use ExcelJS for XLSX parsing, a direct ffmpeg/ffprobe subprocess wrapper, i18next, Vitest, and Playwright. Validate/pin supported versions, licenses, and security posture in Phase 0; these are library choices, not claims about compatibility already tested.
 
-One origin avoids cross-origin auth complexity. One database avoids Redis operations at this scale. Core modules contain no platform SDK imports. Web and worker share application services and DTOs, not request handlers. FFmpeg concurrency starts at one with CPU/memory/time limits; queue priorities protect replies from long transcodes. The production image is built before deployment so the small VPS need not run a frontend build under load.
+One origin avoids cross-origin auth complexity. One database avoids Redis operations at this scale. Core modules contain no platform SDK imports. ChannelAdapter now routes publication, webhook normalization/signature checks, replies, metric collection and credential maintenance. Its fetchInbox consumes verified webhook envelopes; it does not pretend to poll unavailable APIs. Web and worker share application services and DTOs, not request handlers. FFmpeg concurrency starts at one with CPU/memory/time limits; queue priorities protect replies from long transcodes. The production image is built before deployment so the small VPS need not run a frontend build under load.
 
 ```mermaid
 flowchart TD
@@ -32,7 +32,7 @@ flowchart TD
   Knowledge --> Sheets[Sheets API or published CSV]
   Core --> Media[Media service]
   Worker --> Media
-  Media --> Volume[Local volume or S3-compatible storage]
+  Media --> Volume[Local private volume]
   Media --> FFmpeg[Bounded ffmpeg subprocess]
   DB --> Backup[Encrypted database and media backups]
   Volume --> Backup
@@ -56,7 +56,7 @@ Deployment services: `app`, `worker`, `postgres`, `caddy`, plus a one-shot migra
 
 `ChannelAdapter` operations: `publish`, `fetchInbox`, `sendReply`, `fetchMetrics`, `verifyWebhook`, `refreshCredentials`, `capabilities`. Each receives a business/channel context and returns a typed result including delivery state, external ID when known, retryability, and reason. Capability descriptors are per operation/content type, not one boolean for a whole platform. Core decides dispatch eligibility; adapters revalidate transport-specific prerequisites.
 
-`ManualAdapter` returns a tracked human task with copy/download controls, never a fabricated remote success. Pasted inbound messages use the same pipeline. Manual completion records the human actor and optional evidence/permalink, clearly distinguished from API confirmation. Platform token reads are private to adapter/credential services.
+`ManualAdapter` returns a manual outcome that the dispatcher records as a tracked human task with copy/download controls, never a fabricated remote success. Pasted inbound messages use the same pipeline. Manual completion records the human actor and optional evidence/permalink, clearly distinguished from API confirmation. Platform token reads are private to adapter/credential services.
 
 ## Data model and invariants
 
@@ -93,7 +93,7 @@ Indexes cover business/channel/time/status for inbox/jobs/audit; channel externa
 
 ## Outbound trust boundary
 
-All content uploads, publishing substeps, first-comments, replies, holding replies, manual-send requests, and retries pass one dispatcher. There is no direct HTTP escape from feature modules to a platform write endpoint.
+Content publishing and customer replies use dedicated dispatchers with the same authorization, dry-run, audit and idempotency invariants. There is no direct HTTP escape from feature modules to a platform write endpoint.
 
 1. Resolve current membership, role, scope, channel capability, and business settings. Recheck the initiating delegate and approval authority at dispatch; revoked actors cannot leave active pending work behind.
 2. Verify approved revision/hash and due time. Recheck freshness and customer messaging eligibility now, not just when a draft was created. Changed facts, edits, or tightened policy invalidate eligibility.

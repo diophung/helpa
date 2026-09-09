@@ -1,7 +1,10 @@
 import { z } from "zod";
 const text = z.string().trim().max(4000);
 const required = z.string().trim().min(1).max(300);
-const money = z.coerce.number().finite().nonnegative();
+const money = z.preprocess(
+  (v) => (typeof v === "string" && v.trim() !== "" ? Number(v) : v),
+  z.number().finite().nonnegative(),
+);
 const timestamp = z.string().datetime({ offset: true });
 const list = z.preprocess(
   (v) =>
@@ -25,14 +28,37 @@ export const schemas = {
       unit: required,
       price: money,
       currency: z.enum(["VND", "USD"]),
-      stock_status: z.enum(["in_stock", "low", "out", "preorder"]),
+      stock_status: z.enum(["in_stock", "low", "out", "preorder"]).optional(),
       stock_qty: money.optional(),
       min_order: money.optional(),
       notes_public: text.default(""),
       price_updated_at: timestamp.optional(),
       stock_updated_at: timestamp.optional(),
     })
-    .strict(),
+    .strict()
+    .superRefine((v, ctx) => {
+      if (v.stock_status === undefined && v.stock_qty === undefined)
+        ctx.addIssue({
+          code: "custom",
+          path: ["stock_status"],
+          message: "Stock quantity or status is required",
+        });
+      if (
+        v.stock_qty !== undefined &&
+        ((v.stock_qty === 0 &&
+          ["in_stock", "low"].includes(v.stock_status ?? "")) ||
+          (v.stock_qty > 0 && v.stock_status === "out"))
+      )
+        ctx.addIssue({
+          code: "custom",
+          path: ["stock_qty"],
+          message: "Stock quantity contradicts stock status",
+        });
+    })
+    .transform((v) => ({
+      ...v,
+      stock_status: v.stock_status ?? (v.stock_qty === 0 ? "out" : "in_stock"),
+    })),
   shipping_zones: z
     .object({
       ...common,
@@ -85,9 +111,37 @@ export const schemas = {
       items: text.default(""),
       kg: money.optional(),
       total: money.optional(),
+      currency: z.enum(["VND", "USD"]).default("VND"),
+      lines: z
+        .preprocess(
+          (v) =>
+            typeof v === "string"
+              ? (() => {
+                  try {
+                    return JSON.parse(v);
+                  } catch {
+                    return v;
+                  }
+                })()
+              : v,
+          z
+            .array(
+              z
+                .object({ sku: required, quantity: money, line_total: money })
+                .strict(),
+            )
+            .max(100),
+        )
+        .default([]),
       status: required,
     })
-    .strict(),
+    .strict()
+    .refine(
+      (v) =>
+        v.total === undefined ||
+        v.lines.reduce((n, l) => n + l.line_total, 0) <= v.total,
+      { message: "Line totals cannot exceed order total" },
+    ),
 };
 export type Dataset = keyof typeof schemas;
 export const datasetNames = [
@@ -113,7 +167,7 @@ export function recordKey(dataset: Dataset, row: any) {
 export function mapRows(
   dataset: Dataset,
   raw: Record<string, unknown>[],
-  mapping: Record<string, string>,
+  mapping: Record<string, string> = {},
 ) {
   const errors: { row: number; fields: string[]; message: string }[] = [];
   const rows: any[] = [];

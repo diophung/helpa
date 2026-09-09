@@ -1,5 +1,5 @@
 import { randomUUID, createHash } from "node:crypto";
-import { transaction, type PgPool } from "../db/index.js";
+import { transaction, type PgPool, type PoolClient } from "../db/index.js";
 import { audit } from "../audit/index.js";
 import type { Actor } from "../auth/index.js";
 import { AppError } from "../errors.js";
@@ -10,9 +10,11 @@ export async function syncRows(
   sourceId: string,
   raw: Record<string, unknown>[],
   mapping?: Record<string, string>,
+  client?: PoolClient,
 ) {
+  const reader = client ?? pool;
   const source = (
-    await pool.query(
+    await reader.query(
       "SELECT * FROM knowledge_source WHERE business_id=$1 AND id=$2",
       [actor.businessId, sourceId],
     )
@@ -24,8 +26,10 @@ export async function syncRows(
     structuredClone(raw),
     mapping ?? source.mapping,
   );
-  const future = converted.rows.some(
-    (r) => new Date(r.updated_at).getTime() > Date.now() + 60000,
+  const future = converted.rows.some((r) =>
+    [r.updated_at, r.price_updated_at, r.stock_updated_at]
+      .filter(Boolean)
+      .some((t) => new Date(t).getTime() > Date.now() + 60000),
   );
   if (future)
     converted.errors.push({
@@ -34,7 +38,7 @@ export async function syncRows(
       message: "Source timestamps cannot be in the future",
     });
   if (converted.errors.length) {
-    await pool.query(
+    await reader.query(
       "INSERT INTO knowledge_sync(id,business_id,source_id,status,row_count,error) VALUES($1,$2,$3,'rejected',$4,$5)",
       [
         randomUUID(),
@@ -46,7 +50,7 @@ export async function syncRows(
     );
     return { ok: false as const, errors: converted.errors, rows: 0 };
   }
-  return transaction(pool, async (db) => {
+  const work = async (db: PoolClient) => {
     await db.query("SELECT id FROM knowledge_source WHERE id=$1 FOR UPDATE", [
       sourceId,
     ]);
@@ -128,7 +132,8 @@ export async function syncRows(
       },
     });
     return { ok: true as const, rows: raw.length, changed };
-  });
+  };
+  return client ? work(client) : transaction(pool, work);
 }
 export async function currentKnowledge(pool: PgPool, businessId: string) {
   return (
