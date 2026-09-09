@@ -349,18 +349,20 @@ export async function inboxRoutes(
     );
   });
 }
-export async function processWebhooks(pool: PgPool) {
+export const webhookMaxAttempts = 6;
+export async function processWebhooks(pool: PgPool, now = new Date()) {
   const events = (
     await pool.query(
-      "SELECT * FROM webhook_event WHERE status='pending' ORDER BY received_at LIMIT 20",
+      "SELECT * FROM webhook_event WHERE status='pending' AND next_attempt_at<=$1 ORDER BY next_attempt_at,received_at LIMIT 20",
+      [now],
     )
   ).rows;
   for (const e of events) {
     try {
       await transaction(pool, async (db) => {
         const current = await db.query(
-          "SELECT id FROM webhook_event WHERE id=$1 AND status='pending' FOR UPDATE SKIP LOCKED",
-          [e.id],
+          "SELECT id FROM webhook_event WHERE id=$1 AND status='pending' AND attempts=$2 AND next_attempt_at<=$3 FOR UPDATE SKIP LOCKED",
+          [e.id, e.attempts, now],
         );
         if (!current.rowCount) return;
         for (const m of await channelAdapter("facebook").fetchInbox(
@@ -380,14 +382,26 @@ export async function processWebhooks(pool: PgPool) {
           });
         }
         await db.query(
-          "UPDATE webhook_event SET status='processed' WHERE id=$1",
-          [e.id],
+          "UPDATE webhook_event SET status='processed',attempts=attempts+1,last_attempt_at=$2,error=NULL WHERE id=$1",
+          [e.id, now],
         );
       });
     } catch {
+      const attempt = e.attempts + 1;
+      const retryAt = new Date(
+        +now + Math.min(30 * 2 ** (attempt - 1), 1800) * 1000,
+      );
+      // The ingestion transaction rolled back. Fence this update against another
+      // worker succeeding or recording the same failed attempt in the meantime.
       await pool.query(
-        "UPDATE webhook_event SET status='failed',error='NORMALIZATION_FAILED' WHERE id=$1",
-        [e.id],
+        "UPDATE webhook_event SET status=$2,attempts=attempts+1,last_attempt_at=$3,next_attempt_at=$4,error='WEBHOOK_PROCESSING_FAILED' WHERE id=$1 AND status='pending' AND attempts=$5",
+        [
+          e.id,
+          attempt >= webhookMaxAttempts ? "failed" : "pending",
+          now,
+          retryAt,
+          e.attempts,
+        ],
       );
     }
   }

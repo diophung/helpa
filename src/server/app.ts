@@ -603,6 +603,14 @@ export async function buildApp(
       mode: c.HELPA_MODE,
       webhooks: {
         status: "ready",
+        recovery:
+          actor.role === "owner"
+            ? (
+                await pool.query(
+                  "SELECT id,provider,status,attempts,error,received_at,last_attempt_at,next_attempt_at FROM webhook_event WHERE status='failed' OR (status='pending' AND attempts>0) ORDER BY received_at LIMIT 50",
+                )
+              ).rows
+            : [],
         channels: (
           await pool.query(
             "SELECT c.id,c.display_name,max(m.received_at) AS last_event FROM channel c LEFT JOIN conversation v ON v.channel_id=c.id AND v.kind<>'manual' LEFT JOIN message m ON m.conversation_id=v.id WHERE c.business_id=$1 AND ($2 OR c.platform=ANY($3::text[])) GROUP BY c.id",
@@ -652,6 +660,33 @@ export async function buildApp(
             ).rows
           : [],
     };
+  });
+  app.post("/api/system/webhooks/:id/retry", async (req) => {
+    const actor = await actorFor(auth, pool, req);
+    requirePermission(actor, "settings.write");
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    return transaction(pool, async (db) => {
+      const event = (
+        await db.query(
+          "SELECT id,attempts,status FROM webhook_event WHERE id=$1 FOR UPDATE",
+          [id],
+        )
+      ).rows[0];
+      if (!event) throw new AppError(404, "NOT_FOUND");
+      if (event.status !== "failed")
+        throw new AppError(409, "WEBHOOK_NOT_FAILED");
+      await db.query(
+        "UPDATE webhook_event SET status='pending',attempts=0,error=NULL,next_attempt_at=now() WHERE id=$1",
+        [id],
+      );
+      await audit(db, {
+        businessId: actor.businessId,
+        actorId: actor.userId,
+        action: "webhook.retry_requested",
+        payload: { eventId: id, previousAttempts: event.attempts },
+      });
+      return { ok: true };
+    });
   });
   app.post("/api/system/dry-run-probe", async (req) => {
     const actor = await actorFor(auth, pool, req);

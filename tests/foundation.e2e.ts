@@ -48,6 +48,20 @@ test("owner signup → TOTP → settings → real worker dry-run → logout/logi
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
   await expect(page.getByRole("status")).toHaveText("Saved");
   await page.getByRole("button", { name: "System", exact: true }).click();
+  const retry = page.getByRole("button", {
+    name: "Retry failed event",
+    exact: true,
+  });
+  await expect(retry).toBeVisible();
+  await retry.click();
+  await expect(retry).toHaveCount(0);
+  await expect
+    .poll(async () => {
+      const system = await page.request.get("/api/system");
+      return (await system.json()).webhooks.recovery.length;
+    })
+    .toBe(0);
+
   await page
     .getByRole("button", { name: "Verify dry-run", exact: true })
     .click();

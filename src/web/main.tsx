@@ -1280,6 +1280,45 @@ function System({ actor }: { actor: Actor }) {
               {w("Failed webhook events", "Sự kiện webhook lỗi")}:{" "}
               {data?.webhooks?.failures ?? "—"}
             </p>
+            {data?.webhooks?.recovery?.map((event: any) => (
+              <article className="operation" key={event.id}>
+                <strong>
+                  {event.provider} · {event.status} · {event.attempts}{" "}
+                  {w("attempts", "lần thử")}
+                </strong>
+                <small>
+                  {event.id} · {formatTime(event.received_at, actor)}
+                </small>
+                <p>{event.error}</p>
+                {event.status === "pending" ? (
+                  <p>
+                    {w("Next retry", "Thử lại lúc")}:{" "}
+                    {formatTime(event.next_attempt_at, actor)}
+                  </p>
+                ) : (
+                  <button
+                    disabled={busy}
+                    onClick={async () => {
+                      setBusy(true);
+                      try {
+                        await api(
+                          `/system/webhooks/${event.id}/retry`,
+                          "POST",
+                          {},
+                        );
+                        await load();
+                      } catch (e) {
+                        setError((e as Error).message);
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    {w("Retry failed event", "Thử lại sự kiện lỗi")}
+                  </button>
+                )}
+              </article>
+            ))}
             {data?.webhooks?.channels?.map((r: any) => (
               <p key={r.id}>
                 {r.display_name}:{" "}

@@ -65,6 +65,10 @@ app.addHook("onResponse", async (req, reply) => {
       "INSERT INTO channel(id,business_id,platform,display_name,mode,status) VALUES($1,$2,'facebook','Fixture Facebook','dry_run','manual')",
       [randomUUID(), b.id],
     );
+    await appPool.query(
+      "INSERT INTO webhook_event(id,provider,body_hash,payload,status,attempts,error) VALUES($1,'facebook','e2e-recovery-fixture',$2,'failed',6,'WEBHOOK_PROCESSING_FAILED')",
+      [randomUUID(), { object: "page", entry: [] }],
+    );
   }
 });
 await app.listen({ host: "127.0.0.1", port: 3101 });

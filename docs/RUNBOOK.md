@@ -129,3 +129,9 @@ Use the existing app's dashboard to verify its current access level; this does n
 4. Prepare truthful reviewer access instructions and recordings: login with required MFA, Page connection, content preview/approval, publishing, customer inquiry, human escalation and disconnect. Keep credentials out of recordings and public documents.
 5. Ensure required public business/app information, privacy and data-deletion instructions are present in the app dashboard. Follow its current review prompts rather than assuming a development token authorizes public customer traffic.
 6. Run the live acceptance scenarios only on the intended authorized Page after the dry-run review. Record actual post IDs/permalinks, message IDs, scopes, timestamps and policy outcomes in private acceptance notes. Automated Messenger replies stay within the implemented 24-hour window; Helpa does not use a human-agent tag to extend automation.
+
+## Webhook retry and recovery
+
+Migration 006 adds persistent attempts and a next-attempt timestamp to acknowledged webhook events. Ingestion commits the entire event batch atomically; a failure rolls back its messages and schedules another attempt. The worker makes at most six attempts per cycle with exponential delays of 30, 60, 120, 240 and 480 seconds before retries. Concurrent workers recheck the event state under a row lock, and existing message IDs remain deduplicated.
+
+After the sixth failure the event stays retained as `failed`. The owner can inspect its ID, attempts and timing in System → Delivery & ingestion, fix the cause, then use Retry failed event to start a fresh retry cycle. Requeueing is audited and only works for failed events; it never erases the stored webhook payload or invents a new message ID. Previously failed events from before migration 006 are also available for this recovery action. Raw customer payloads are not exposed in the System response.

@@ -1,5 +1,5 @@
 import { beforeAll, afterAll, it, expect, vi } from "vitest";
-import { randomUUID, createHmac } from "node:crypto";
+import { randomUUID, createHmac, createHash } from "node:crypto";
 import * as OTPAuth from "otpauth";
 import { Pool } from "../src/server/db/index.js";
 import { migrate } from "../src/server/db/migrate.js";
@@ -468,4 +468,154 @@ it("captures a human edit and manual approval without claiming an external deliv
       )
     ).rows[0].payload,
   ).toMatchObject({ humanReviewed: true, facts: [] });
+});
+
+async function acknowledgedBatch(prefix: string) {
+  const payload = {
+    object: "page",
+    entry: [
+      {
+        id: "123",
+        messaging: [1, 2].map((n) => ({
+          sender: { id: prefix },
+          recipient: { id: "123" },
+          timestamp: Date.now(),
+          message: { mid: `${prefix}-${n}`, text: "Cảm ơn shop" },
+        })),
+      },
+    ],
+  };
+  const raw = JSON.stringify(payload);
+  const hash = createHash("sha256").update(raw).digest("hex");
+  const result = await b.app.inject({
+    method: "POST",
+    url: "/webhooks/meta",
+    headers: {
+      "content-type": "application/json",
+      "x-hub-signature-256":
+        "sha256=" +
+        createHmac("sha256", c.META_APP_SECRET).update(raw).digest("hex"),
+    },
+    payload: raw,
+  });
+  expect(result.statusCode, result.body).toBe(200);
+  return (
+    await b.pool.query("SELECT * FROM webhook_event WHERE body_hash=$1", [hash])
+  ).rows[0];
+}
+async function failSecondMessage() {
+  await b.pool
+    .query(`CREATE FUNCTION fixture_webhook_deadlock() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+    IF NEW.external_id LIKE 'webhook-retry-%-2' THEN RAISE EXCEPTION 'synthetic deadlock' USING ERRCODE='40P01'; END IF;
+    RETURN NEW;
+  END; $$;
+  CREATE TRIGGER fixture_webhook_deadlock BEFORE INSERT ON message FOR EACH ROW EXECUTE FUNCTION fixture_webhook_deadlock()`);
+}
+async function removeWebhookFailure() {
+  await b.pool.query(
+    "DROP TRIGGER IF EXISTS fixture_webhook_deadlock ON message; DROP FUNCTION IF EXISTS fixture_webhook_deadlock()",
+  );
+}
+async function eventRow(id: string) {
+  return (await b.pool.query("SELECT * FROM webhook_event WHERE id=$1", [id]))
+    .rows[0];
+}
+it("retries an acknowledged webhook atomically after backoff, without duplicate messages across workers", async () => {
+  const e = await acknowledgedBatch("webhook-retry-transient");
+  const now = new Date(Date.now() + 1000);
+  await failSecondMessage();
+  try {
+    await processWebhooks(b.pool, now);
+    expect(await eventRow(e.id)).toMatchObject({
+      status: "pending",
+      attempts: 1,
+      error: "WEBHOOK_PROCESSING_FAILED",
+    });
+    expect(+(await eventRow(e.id)).next_attempt_at - +now).toBe(30000);
+    expect(
+      (
+        await b.pool.query(
+          "SELECT count(*) FROM message WHERE external_id LIKE 'webhook-retry-transient-%'",
+        )
+      ).rows[0].count,
+    ).toBe("0");
+  } finally {
+    await removeWebhookFailure();
+  }
+  await processWebhooks(b.pool, new Date(+now + 29999));
+  expect((await eventRow(e.id)).attempts).toBe(1);
+  await Promise.all([
+    processWebhooks(b.pool, new Date(+now + 30000)),
+    processWebhooks(b.pool, new Date(+now + 30000)),
+  ]);
+  expect(await eventRow(e.id)).toMatchObject({
+    status: "processed",
+    attempts: 2,
+    error: null,
+  });
+  const messages = await b.pool.query(
+    "SELECT external_id,count(*)::int AS count FROM message WHERE external_id LIKE 'webhook-retry-transient-%' GROUP BY external_id ORDER BY external_id",
+  );
+  expect(messages.rows).toEqual([
+    { external_id: "webhook-retry-transient-1", count: 1 },
+    { external_id: "webhook-retry-transient-2", count: 1 },
+  ]);
+});
+it("bounds repeated webhook failures, exposes safe recovery metadata, and audits an owner requeue", async () => {
+  const e = await acknowledgedBatch("webhook-retry-exhausted");
+  let now = new Date(Date.now() + 1000);
+  await failSecondMessage();
+  try {
+    for (let attempt = 1; attempt <= 6; attempt++) {
+      await processWebhooks(b.pool, now);
+      const row = await eventRow(e.id);
+      expect(row.attempts).toBe(attempt);
+      expect(row.status).toBe(attempt === 6 ? "failed" : "pending");
+      expect(+row.next_attempt_at - +now).toBe(30000 * 2 ** (attempt - 1));
+      now = row.next_attempt_at;
+    }
+    await processWebhooks(b.pool, new Date(+now + 86400000));
+    expect((await eventRow(e.id)).attempts).toBe(6);
+  } finally {
+    await removeWebhookFailure();
+  }
+  const system = (await request("GET", "/system")).json();
+  expect(
+    system.webhooks.recovery.find((r: any) => r.id === e.id),
+  ).toMatchObject({ status: "failed", attempts: 6 });
+  expect(
+    system.webhooks.recovery.find((r: any) => r.id === e.id),
+  ).not.toHaveProperty("payload");
+  const unauthorized = await b.app.inject({
+    method: "POST",
+    url: `/api/system/webhooks/${e.id}/retry`,
+    headers: { origin: c.PUBLIC_URL },
+    payload: {},
+  });
+  expect(unauthorized.statusCode).toBe(401);
+  const retry = await request("POST", `/system/webhooks/${e.id}/retry`, {});
+  expect(retry.statusCode, retry.body).toBe(200);
+  expect(
+    (await request("POST", `/system/webhooks/${e.id}/retry`, {})).statusCode,
+  ).toBe(409);
+  const audit = await b.pool.query(
+    "SELECT payload FROM audit_event WHERE action='webhook.retry_requested' AND payload->>'eventId'=$1",
+    [e.id],
+  );
+  expect(audit.rows).toEqual([
+    { payload: { eventId: e.id, previousAttempts: 6 } },
+  ]);
+  await processWebhooks(b.pool, new Date(Date.now() + 1000));
+  expect(await eventRow(e.id)).toMatchObject({
+    status: "processed",
+    attempts: 1,
+    error: null,
+  });
+  expect(
+    (
+      await b.pool.query(
+        "SELECT count(*) FROM message WHERE external_id LIKE 'webhook-retry-exhausted-%'",
+      )
+    ).rows[0].count,
+  ).toBe("2");
 });
