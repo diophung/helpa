@@ -28,7 +28,7 @@
     "csv-parse": "7.0.2",
     "dotenv": "17.4.2",
     "exceljs": "4.4.0",
-    "fastify": "5.12.3",
+    "fastify": "5.12.6",
     "google-auth-library": "11.0.2",
     "i18next": "26.4.2",
     "lucide-react": "1.42.0",
